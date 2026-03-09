@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ST-IAT Setup | DRC National Identity Study</title>
+    <link rel="stylesheet" href="css/main.css">
+</head>
+<body>
+    <div class="container">
+        <h1>ST-IAT Simulator</h1>
+        <p class="subtitle">DRC National Identity Study — Single-Target Implicit Association Test</p>
+
+        <form id="setup-form">
+            <div class="card">
+                <h2>Session Setup</h2>
+
+                <label for="respondent-id">Respondent ID</label>
+                <input type="text" id="respondent-id" placeholder="Leave blank for auto-generated ID">
+
+                <label for="iat-version">IAT Version</label>
+                <select id="iat-version">
+                    <option value="random">Random Assignment (Recommended)</option>
+                    <option value="other_congolese">IAT 1: Other Congolese</option>
+                    <option value="congolese_state">IAT 2: Congolese State</option>
+                </select>
+
+                <label for="block-order">Block Order (Counterbalance)</label>
+                <select id="block-order">
+                    <option value="random">Random (Recommended)</option>
+                    <option value="A">Order A — Target+Good first</option>
+                    <option value="B">Order B — Target+Bad first</option>
+                </select>
+
+                <label for="language">Stimulus Language</label>
+                <select id="language">
+                    <option value="swahili">Swahili</option>
+                    <option value="french">French</option>
+                </select>
+            </div>
+
+            <div class="card">
+                <h2>How It Works</h2>
+                <p style="font-size: 0.95rem; color: #555; line-height: 1.6;">
+                    You will sort words into categories as fast as you can.
+                    Press <strong>E</strong> (or tap left) for the left category.
+                    Press <strong>I</strong> (or tap right) for the right category.
+                    The task has 4 blocks of 24 trials each (~5 minutes total).
+                </p>
+            </div>
+
+            <button type="submit" class="btn btn-primary">Start IAT</button>
+        </form>
+    </div>
+
+    <script src="js/app.js"></script>
+</body>
+</html>
