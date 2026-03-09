@@ -95,7 +95,7 @@ const IAT_CONFIG = {
 
   // --- Category display labels ---
   categoryLabels: {
-    good: 'GOOD',
-    bad: 'BAD',
+    good: '👍 GOOD',
+    bad: '👎 BAD',
   },
 };
