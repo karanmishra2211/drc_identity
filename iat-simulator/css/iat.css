@@ -56,12 +56,12 @@ html, body {
 }
 
 .category-label.good {
-  background: #2e7d32;
+  background: #616161;
   color: #ffffff;
 }
 
 .category-label.bad {
-  background: #c62828;
+  background: #616161;
   color: #ffffff;
 }
 
@@ -111,11 +111,11 @@ html, body {
 }
 
 .stimulus-word.good {
-  color: #81c784;
+  color: #e0e0e0;
 }
 
 .stimulus-word.bad {
-  color: #ef9a9a;
+  color: #e0e0e0;
 }
 
 .stimulus-word.target {
