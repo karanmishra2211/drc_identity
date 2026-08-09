@@ -25,10 +25,21 @@ const IAT_CONFIG = {
 
   // --- Scoring parameters ---
   scoring: {
-    // Error handling. Pick ONE and pre-register it — these are
-    // different estimators and must not be mixed.
-    //   'penalty'  = replace error latency with block mean + 600ms
-    //   'enforced' = require correction, use time-to-correct
+    // LOCKED: 'penalty'. Error latencies are replaced with the block's
+    // correct-trial mean + 600ms. The alternative ('enforced' — require
+    // the correct key, use time-to-correct) is Greenwald's nominal
+    // recommendation, and the two are psychometrically comparable.
+    //
+    // We deviate deliberately: enforced correction lets a confused
+    // respondent stall on a screen until they guess right, which invites
+    // enumerator intervention — and an enumerator leaning over the tablet
+    // destroys the privacy that justifies using an implicit measure at
+    // all. The penalty variant always moves forward and keeps task
+    // duration predictable against a fixed survey budget.
+    //
+    // Cost accepted: errors concentrate in the incompatible block, so the
+    // imputation does real work in the numerator. Pre-register it.
+    // See README.md § Error handling. Do not mix the two.
     errorHandling: 'penalty',
     errorPenaltyMs: 600,
 
