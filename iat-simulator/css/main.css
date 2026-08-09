@@ -1,216 +1,186 @@
 /* ============================================================
-   main.css — Entry and results page styles
+   main.css — Setup and results pages
    ============================================================ */
 
-* {
-  margin: 0;
-  padding: 0;
-  box-sizing: border-box;
-}
+* { margin: 0; padding: 0; box-sizing: border-box; }
 
 body {
   font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
-  background: #f5f5f7;
+  background: #f4f4f6;
   color: #1a1a1a;
-  min-height: 100vh;
+  line-height: 1.6;
 }
 
-.container {
-  max-width: 640px;
-  margin: 0 auto;
-  padding: 40px 24px;
-}
+.container { max-width: 660px; margin: 0 auto; padding: 44px 24px 64px; }
 
-h1 {
-  font-size: 1.8rem;
-  font-weight: 700;
-  margin-bottom: 8px;
-  color: #1a1a2e;
-}
+h1 { font-size: 1.65rem; font-weight: 700; color: #14141f; letter-spacing: -0.01em; }
+.subtitle { font-size: 0.95rem; color: #6a6a72; margin-bottom: 30px; }
 
-.subtitle {
-  font-size: 1rem;
-  color: #666;
-  margin-bottom: 32px;
-}
-
-/* --- Cards --- */
 .card {
-  background: #ffffff;
+  background: #fff;
   border-radius: 12px;
   padding: 24px;
-  margin-bottom: 20px;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+  margin-bottom: 18px;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.07);
 }
 
 .card h2 {
-  font-size: 1.1rem;
+  font-size: 0.78rem;
   font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: #8a8a92;
   margin-bottom: 16px;
-  color: #1a1a2e;
 }
 
-/* --- Form elements --- */
+/* --- Form --- */
 label {
   display: block;
-  font-size: 0.85rem;
+  font-size: 0.8rem;
   font-weight: 600;
-  color: #555;
+  color: #4a4a52;
   margin-bottom: 6px;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
 }
 
-input[type="text"],
-select {
+label .hint { font-weight: 400; color: #9a9aa2; }
+
+input[type="text"], select {
   width: 100%;
-  padding: 10px 14px;
-  font-size: 1rem;
-  border: 1px solid #ddd;
+  padding: 10px 13px;
+  font-size: 0.98rem;
+  font-family: inherit;
+  border: 1px solid #dcdce2;
   border-radius: 8px;
-  background: #fafafa;
+  background: #fafafb;
   color: #1a1a1a;
-  margin-bottom: 16px;
-  transition: border-color 0.2s;
+  margin-bottom: 18px;
 }
 
-input[type="text"]:focus,
-select:focus {
+input[type="text"]:focus, select:focus {
   outline: none;
-  border-color: #1565c0;
+  border-color: #14141f;
   background: #fff;
 }
+
+.note {
+  font-size: 0.87rem;
+  color: #6a6a72;
+  margin: -8px 0 18px;
+}
+
+.card .note:last-child { margin-bottom: 0; }
 
 /* --- Buttons --- */
 .btn {
   display: inline-block;
-  padding: 12px 32px;
-  font-size: 1rem;
+  padding: 12px 30px;
+  font-size: 0.98rem;
   font-weight: 600;
+  font-family: inherit;
   border: none;
   border-radius: 8px;
   cursor: pointer;
-  transition: background 0.2s, transform 0.1s;
   text-decoration: none;
-}
-
-.btn:active {
-  transform: scale(0.98);
-}
-
-.btn-primary {
-  background: #1a1a2e;
-  color: #ffffff;
-  width: 100%;
-}
-
-.btn-primary:hover {
-  background: #2a2a4e;
-}
-
-.btn-secondary {
-  background: #e8e8e8;
-  color: #1a1a1a;
-}
-
-.btn-secondary:hover {
-  background: #ddd;
-}
-
-.btn-group {
-  display: flex;
-  gap: 12px;
-  margin-top: 16px;
-}
-
-.btn-group .btn {
-  flex: 1;
-}
-
-/* --- Results page --- */
-.d-score-display {
   text-align: center;
-  padding: 32px;
+  transition: background 0.18s;
 }
 
-.d-score-value {
-  font-size: 4rem;
+.btn-primary { background: #14141f; color: #fff; width: 100%; }
+.btn-primary:hover { background: #2a2a3a; }
+.btn-secondary { background: #e6e6ea; color: #1a1a1a; }
+.btn-secondary:hover { background: #dadae0; }
+.btn-block { display: block; margin-top: 12px; }
+
+.btn-group { display: flex; gap: 12px; }
+.btn-group .btn { flex: 1; }
+
+/* --- Score display --- */
+.score-display { text-align: center; padding: 18px 0 8px; }
+
+.score-value {
+  font-size: 3.6rem;
   font-weight: 700;
-  color: #1a1a2e;
   line-height: 1;
+  font-variant-numeric: tabular-nums;
 }
 
-.d-score-label {
-  font-size: 0.85rem;
-  color: #999;
+.score-value.pos { color: #1f6b3a; }
+.score-value.neg { color: #9c3030; }
+.score-value.neu { color: #6a6a72; }
+
+.score-caption {
+  font-size: 0.72rem;
+  letter-spacing: 0.16em;
   text-transform: uppercase;
-  letter-spacing: 0.1em;
+  color: #9a9aa2;
   margin-top: 8px;
 }
 
-.d-score-interpretation {
-  font-size: 1.1rem;
-  color: #555;
-  margin-top: 12px;
+.score-interp { font-size: 1.05rem; color: #3a3a42; margin-top: 14px; }
+.score-effect { font-size: 0.87rem; color: #8a8a92; margin-top: 2px; }
+
+.sign-note {
+  margin: 22px 0 0;
+  padding-top: 16px;
+  border-top: 1px solid #eeeef1;
+  font-size: 0.83rem;
 }
 
-.d-score-effect {
-  font-size: 0.9rem;
-  color: #888;
-  margin-top: 4px;
-}
-
+/* --- Stats --- */
 .stat-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 16px;
+  gap: 12px;
 }
 
-.stat-item {
+.stat {
   text-align: center;
-  padding: 12px;
-  background: #f8f8fa;
+  padding: 14px 10px;
+  background: #f7f7f9;
   border-radius: 8px;
 }
 
 .stat-value {
-  font-size: 1.5rem;
+  font-size: 1.3rem;
   font-weight: 700;
-  color: #1a1a2e;
+  color: #14141f;
+  font-variant-numeric: tabular-nums;
 }
 
 .stat-label {
-  font-size: 0.75rem;
-  color: #888;
-  text-transform: uppercase;
+  font-size: 0.7rem;
   letter-spacing: 0.05em;
-  margin-top: 4px;
+  color: #8a8a92;
+  margin-top: 3px;
 }
 
-.flags-list {
-  list-style: none;
-  padding: 0;
-}
+/* --- Flags --- */
+.flags { list-style: none; }
 
-.flags-list li {
-  padding: 8px 12px;
-  background: #fff3e0;
-  border-left: 3px solid #ff9800;
+.flags li {
+  padding: 10px 14px;
+  background: #fff5e6;
+  border-left: 3px solid #d9901f;
   border-radius: 4px;
   margin-bottom: 8px;
-  font-size: 0.9rem;
-  color: #e65100;
+  font-size: 0.88rem;
+  color: #8a5a10;
 }
 
-.session-info {
-  font-size: 0.85rem;
-  color: #888;
+.flags li:last-child { margin-bottom: 0; }
+
+/* --- Key/value list --- */
+.kv p {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 7px 0;
+  border-bottom: 1px solid #f0f0f3;
+  font-size: 0.89rem;
 }
 
-.session-info p {
-  margin-bottom: 4px;
-}
+.kv p:last-child { border-bottom: none; }
+.kv span { color: #8a8a92; }
+.kv strong { font-weight: 600; color: #2a2a32; }
 
-.positive { color: #2e7d32; }
-.negative { color: #c62828; }
-.neutral  { color: #888; }
+.hidden { display: none !important; }

@@ -1,101 +1,141 @@
 // ============================================================
-// config.js — Stimuli, timing constants, and block definitions
-// ST-IAT Protocol for DRC National Identity Study
+// config.js — IAT #1: National vs. Regional Identity
+// Instrument spec v1.0 · August 2026
+//
+// Two-target IAT. D > 0 = faster when National + Good share a
+// key = stronger implicit national identity. This sign is
+// LOCKED. See scoring.js — scoring is keyed on PAIRING TYPE,
+// not on presentation position, so counterbalancing cannot
+// flip it.
 // ============================================================
 
 const IAT_CONFIG = {
+  meta: {
+    instrument: 'IAT #1 — National vs. Regional Identity',
+    version: 'v1.0',
+  },
+
   // --- Timing (milliseconds) ---
   timing: {
-    fixation: 500,        // Fixation cross duration
-    errorFeedback: 200,   // Red X display after incorrect response
-    iti: 250,             // Inter-trial interval
-    maxRT: 10000,         // Trials slower than this are excluded
-    minRT: 300,           // Trials faster than this flag random responding
-    minRTPercent: 0.10,   // Exclude participant if >10% trials < minRT
-    maxErrorRate: 0.30,   // Exclude participant if >30% errors
+    fixation: 500,
+    errorFeedback: 300,
+    iti: 250,
+    maxRT: 10000,
   },
 
-  // --- Trials per block ---
-  trialsPerBlock: 24,
+  // --- Scoring parameters ---
+  scoring: {
+    // Error handling. Pick ONE and pre-register it — these are
+    // different estimators and must not be mixed.
+    //   'penalty'  = replace error latency with block mean + 600ms
+    //   'enforced' = require correction, use time-to-correct
+    errorHandling: 'penalty',
+    errorPenaltyMs: 600,
 
-  // --- Shared evaluative stimuli (used in all IATs) ---
-  evaluative: {
+    // Subject-level exclusion criteria
+    fastTrialThreshold: 300,      // ms
+    fastTrialSubjectLimit: 0.10,  // flag if >10% of trials are faster
+    maxErrorRate: 0.30,           // flag if error rate exceeds this
+
+    // The improved D algorithm does NOT trim the lower tail at the
+    // trial level. Leave false unless deliberately deviating.
+    dropFastTrials: false,
+  },
+
+  // --- Category display ---
+  categories: {
+    national: { label: 'CONGO',  sublabel: 'the nation' },
+    regional: { label: 'KIVU',   sublabel: 'the East' },
+    good:     { label: 'GOOD',   sublabel: '' },
+    bad:      { label: 'BAD',    sublabel: '' },
+  },
+
+  // --- Target stimuli (locked core, modality-balanced 2 image + 2 audio) ---
+  // Modality balance is a HARD constraint. If validation drops a
+  // stimulus, replace it with one of the same modality.
+  targets: {
+    national: [
+      { id: 'leopards', label: 'Les Léopards', modality: 'image', asset: 'assets/img/national/leopards.png',  note: 'national team crest' },
+      { id: 'drc_map',  label: 'Carte RDC',    modality: 'image', asset: 'assets/img/national/drc_map.png',   note: 'territorial map' },
+      { id: 'congo',    label: 'Congo',        modality: 'audio', asset: 'assets/audio/national/congo.mp3' },
+      { id: 'rdc',      label: 'RDC',          modality: 'audio', asset: 'assets/audio/national/rdc.mp3' },
+    ],
+    regional: [
+      { id: 'gorillas',  label: 'Gorilles du Virunga', modality: 'image', asset: 'assets/img/regional/gorillas.png' },
+      { id: 'lake_kivu', label: 'Lac Kivu',            modality: 'image', asset: 'assets/img/regional/lake_kivu.png' },
+      { id: 'kivu',      label: 'Kivu',                modality: 'audio', asset: 'assets/audio/regional/kivu.mp3' },
+      // CONDITIONAL: drop if IAT #2 fields with Kinyarwanda names
+      // (cross-priming), and arguably drop regardless — every
+      // attribute trial is already Swahili audio.
+      { id: 'kiswahili', label: 'Kiswahili',           modality: 'audio', asset: 'assets/audio/regional/kiswahili.mp3', conditional: true },
+      // Same-modality replacement if Kiswahili is dropped:
+      { id: 'mashariki', label: 'Mashariki',           modality: 'audio', asset: 'assets/audio/regional/mashariki.mp3', replacesConditional: true },
+    ],
+  },
+
+  // Set false to drop Kiswahili and swap in the non-linguistic backup.
+  useConditionalSwahili: true,
+
+  // --- Attribute stimuli (audio, reused across both IATs) ---
+  attributes: {
     good: [
-      { id: 'furaha',  word: 'Furaha',  translation: 'Joy / Happiness' },
-      { id: 'amani',   word: 'Amani',   translation: 'Peace' },
-      { id: 'upendo',  word: 'Upendo',  translation: 'Love' },
-      { id: 'rafiki',  word: 'Rafiki',  translation: 'Friend' },
-      { id: 'baraka',  word: 'Baraka',  translation: 'Blessing' },
-      { id: 'uzuri',   word: 'Uzuri',   translation: 'Beauty' },
+      { id: 'furaha', label: 'Furaha', gloss: 'joy',      modality: 'audio', asset: 'assets/audio/attr/furaha.mp3' },
+      { id: 'amani',  label: 'Amani',  gloss: 'peace',    modality: 'audio', asset: 'assets/audio/attr/amani.mp3' },
+      { id: 'upendo', label: 'Upendo', gloss: 'love',     modality: 'audio', asset: 'assets/audio/attr/upendo.mp3' },
+      { id: 'rafiki', label: 'Rafiki', gloss: 'friend',   modality: 'audio', asset: 'assets/audio/attr/rafiki.mp3' },
+      { id: 'baraka', label: 'Baraka', gloss: 'blessing', modality: 'audio', asset: 'assets/audio/attr/baraka.mp3' },
+      { id: 'uzuri',  label: 'Uzuri',  gloss: 'beauty',   modality: 'audio', asset: 'assets/audio/attr/uzuri.mp3' },
     ],
     bad: [
-      { id: 'huzuni',   word: 'Huzuni',   translation: 'Sadness' },
-      { id: 'hatari',   word: 'Hatari',   translation: 'Danger' },
-      { id: 'chuki',    word: 'Chuki',    translation: 'Hatred' },
-      { id: 'adui',     word: 'Adui',     translation: 'Enemy' },
-      { id: 'maumivu',  word: 'Maumivu',  translation: 'Pain' },
-      { id: 'hofu',     word: 'Hofu',     translation: 'Fear' },
+      { id: 'huzuni',  label: 'Huzuni',  gloss: 'sadness', modality: 'audio', asset: 'assets/audio/attr/huzuni.mp3' },
+      { id: 'hatari',  label: 'Hatari',  gloss: 'danger',  modality: 'audio', asset: 'assets/audio/attr/hatari.mp3' },
+      { id: 'chuki',   label: 'Chuki',   gloss: 'hatred',  modality: 'audio', asset: 'assets/audio/attr/chuki.mp3' },
+      { id: 'adui',    label: 'Adui',    gloss: 'enemy',   modality: 'audio', asset: 'assets/audio/attr/adui.mp3' },
+      { id: 'maumivu', label: 'Maumivu', gloss: 'pain',    modality: 'audio', asset: 'assets/audio/attr/maumivu.mp3' },
+      { id: 'hofu',    label: 'Hofu',    gloss: 'fear',    modality: 'audio', asset: 'assets/audio/attr/hofu.mp3' },
     ],
   },
 
-  // --- Target stimuli by IAT version ---
-  targets: {
-    other_congolese: {
-      label: 'Other Congolese',
-      labelSwahili: 'Wacongo Wengine',
-      stimuli: [
-        { id: 'kinois',           word: 'Kinois',           translation: 'Person from Kinshasa' },
-        { id: 'mtu_wa_kinshasa',  word: 'Mtu wa Kinshasa',  translation: 'Person from Kinshasa (Sw.)' },
-        { id: 'katangais',        word: 'Katangais',        translation: 'Person from Katanga' },
-        { id: 'mtu_wa_lubumbashi',word: 'Mtu wa Lubumbashi',translation: 'Person from Lubumbashi' },
-        { id: 'mukongo',          word: 'Mukongo',          translation: 'Person from Kongo Central' },
-        { id: 'lingala',          word: 'Lingala',          translation: 'The Lingala language' },
-      ],
-    },
-    congolese_state: {
-      label: 'Congolese State',
-      labelSwahili: 'Serikali ya Congo',
-      stimuli: [
-        { id: 'serikali',         word: 'Serikali',         translation: 'Government' },
-        { id: 'drapeau_ya_congo', word: 'Drapeau ya Congo', translation: 'Congolese flag' },
-        { id: 'fardc',            word: 'FARDC',            translation: 'Congolese armed forces' },
-        { id: 'polisi',           word: 'Polisi',           translation: 'Police' },
-        { id: 'carte_identite',   word: "Carte d'identité", translation: 'National ID card' },
-        { id: 'kinshasa',         word: 'Kinshasa',         translation: 'The capital' },
-      ],
-    },
+  // --- Block structure (standard 7-block improved procedure) ---
+  // 'phase' selects which target sits on the LEFT:
+  //   'first'  = the arm's opening target
+  //   'second' = the reversed assignment
+  // Attributes never move: GOOD is always left, BAD always right.
+  blocks: [
+    { n: 1, fn: 'target_practice',     label: 'Target practice',          trials: 20, kinds: ['target'],              phase: 'first',  isTest: false },
+    { n: 2, fn: 'attribute_practice',  label: 'Attribute practice',       trials: 20, kinds: ['attribute'],           phase: null,     isTest: false },
+    { n: 3, fn: 'combined_practice',   label: 'Combined practice',        trials: 20, kinds: ['target', 'attribute'], phase: 'first',  isTest: false },
+    { n: 4, fn: 'combined_test',       label: 'Combined test',            trials: 40, kinds: ['target', 'attribute'], phase: 'first',  isTest: true  },
+    { n: 5, fn: 'reversed_target',     label: 'Reversed target practice', trials: 40, kinds: ['target'],              phase: 'second', isTest: false },
+    { n: 6, fn: 'combined_practice_r', label: 'Combined practice',        trials: 20, kinds: ['target', 'attribute'], phase: 'second', isTest: false },
+    { n: 7, fn: 'combined_test_r',     label: 'Combined test',            trials: 40, kinds: ['target', 'attribute'], phase: 'second', isTest: true  },
+  ],
+
+  // Trim lever: set to 20 to save ~45s (total 180 trials). This is
+  // the FIRST and ONLY place to cut. Counterbalancing then carries
+  // the order-effect protection on its own.
+  block5Trials: 40,
+
+  // --- Counterbalancing arms ---
+  // Which target pairs with GOOD in the first combined phase.
+  arms: {
+    national_first: { firstTarget: 'national', secondTarget: 'regional' },
+    regional_first: { firstTarget: 'regional', secondTarget: 'national' },
   },
 
-  // --- Block structure ---
-  // Block types:
-  //   'practice'       = evaluative only (GOOD vs BAD)
-  //   'compatible'     = Target+GOOD on left, BAD on right
-  //   'incompatible'   = GOOD on left, Target+BAD on right
-  //
-  // Order A (compatible first): 1→2→3→4
-  // Order B (incompatible first): 1→4→3→2
-  blocks: {
-    1: { type: 'practice',     leftCategories: ['good'],           rightCategories: ['bad'],           isTest: false, label: 'Practice' },
-    2: { type: 'compatible',   leftCategories: ['target', 'good'], rightCategories: ['bad'],           isTest: true,  label: 'Combined A' },
-    3: { type: 'practice',     leftCategories: ['good'],           rightCategories: ['bad'],           isTest: false, label: 'Re-practice' },
-    4: { type: 'incompatible', leftCategories: ['good'],           rightCategories: ['target', 'bad'], isTest: true,  label: 'Combined B' },
-  },
-
-  // Block orders for counterbalancing
-  blockOrders: {
-    A: [1, 2, 3, 4],  // compatible first
-    B: [1, 4, 3, 2],  // incompatible first
-  },
-
-  // --- Key mappings ---
+  // --- Response keys ---
   keys: {
-    left: ['e', 'E', 'ArrowLeft'],
+    left:  ['e', 'E', 'ArrowLeft'],
     right: ['i', 'I', 'ArrowRight'],
   },
+};
 
-  // --- Category display labels ---
-  categoryLabels: {
-    good: '👍 GOOD',
-    bad: '👎 BAD',
-  },
+// Resolve the conditional Swahili stimulus into a usable target list.
+IAT_CONFIG.resolvedTargets = function (side) {
+  const all = IAT_CONFIG.targets[side];
+  return all.filter(s => {
+    if (s.conditional) return IAT_CONFIG.useConditionalSwahili;
+    if (s.replacesConditional) return !IAT_CONFIG.useConditionalSwahili;
+    return true;
+  });
 };

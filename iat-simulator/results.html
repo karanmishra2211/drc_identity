@@ -3,67 +3,58 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ST-IAT Results</title>
+    <title>IAT #1 — Results</title>
     <link rel="stylesheet" href="css/main.css">
 </head>
 <body>
-    <div class="container" id="results-container">
-        <h1>IAT Complete</h1>
-        <p class="subtitle" id="results-subtitle"></p>
+    <div class="container" id="root">
+        <h1>Session complete</h1>
+        <p class="subtitle">IAT #1 — National vs. Regional Identity</p>
 
-        <!-- D-Score display -->
         <div class="card">
-            <div class="d-score-display">
-                <div class="d-score-value" id="d-score-value">—</div>
-                <div class="d-score-label">D-Score</div>
-                <div class="d-score-interpretation" id="d-interpretation"></div>
-                <div class="d-score-effect" id="d-effect"></div>
+            <div class="score-display">
+                <div class="score-value" id="d-value">—</div>
+                <div class="score-caption">d_national</div>
+                <div class="score-interp" id="d-interp"></div>
+                <div class="score-effect" id="d-effect"></div>
             </div>
+            <p class="note sign-note">
+                D &gt; 0 = faster when <strong>National + Good</strong> share a key
+                = stronger implicit national identity. Scored on pairing type,
+                not presentation order, so the arm cannot flip the sign.
+            </p>
         </div>
 
-        <!-- Summary stats -->
         <div class="card">
-            <h2>Summary Statistics</h2>
-            <div class="stat-grid">
-                <div class="stat-item">
-                    <div class="stat-value" id="stat-mean-compat">—</div>
-                    <div class="stat-label">Mean RT (Compatible)</div>
-                </div>
-                <div class="stat-item">
-                    <div class="stat-value" id="stat-mean-incompat">—</div>
-                    <div class="stat-label">Mean RT (Incompatible)</div>
-                </div>
-                <div class="stat-item">
-                    <div class="stat-value" id="stat-error-rate">—</div>
-                    <div class="stat-label">Error Rate</div>
-                </div>
-                <div class="stat-item">
-                    <div class="stat-value" id="stat-mean-rt">—</div>
-                    <div class="stat-label">Overall Mean RT</div>
-                </div>
-            </div>
+            <h2>Primary — test blocks only</h2>
+            <div class="stat-grid" id="primary-stats"></div>
         </div>
 
-        <!-- Data quality flags -->
-        <div class="card" id="flags-card" style="display:none;">
-            <h2>Data Quality Flags</h2>
-            <ul class="flags-list" id="flags-list"></ul>
-        </div>
-
-        <!-- Session info -->
         <div class="card">
-            <h2>Session Info</h2>
-            <div class="session-info" id="session-info"></div>
+            <h2>Robustness — practice + test</h2>
+            <div class="stat-grid" id="robust-stats"></div>
         </div>
 
-        <!-- Actions -->
+        <div class="card">
+            <h2>Diagnostics</h2>
+            <div class="stat-grid" id="diag-stats"></div>
+        </div>
+
+        <div class="card hidden" id="flags-card">
+            <h2>Flags</h2>
+            <ul class="flags" id="flags"></ul>
+        </div>
+
+        <div class="card">
+            <h2>Session</h2>
+            <div class="kv" id="session-info"></div>
+        </div>
+
         <div class="btn-group">
-            <button class="btn btn-secondary" id="btn-export-json">Export JSON</button>
-            <button class="btn btn-secondary" id="btn-export-csv">Export CSV</button>
+            <button class="btn btn-secondary" id="export-json">Export JSON</button>
+            <button class="btn btn-secondary" id="export-csv">Export CSV</button>
         </div>
-        <div style="margin-top: 12px;">
-            <a href="index.html" class="btn btn-primary" style="display:block; text-align:center;">New Session</a>
-        </div>
+        <a href="index.html" class="btn btn-primary btn-block">New session</a>
     </div>
 
     <script src="js/config.js"></script>
@@ -71,76 +62,72 @@
     <script src="js/scoring.js"></script>
     <script>
     document.addEventListener('DOMContentLoaded', () => {
-      const session = IATStorage.getSession();
+      const s = IATStorage.get();
 
-      if (!session || !session.trials.length) {
-        document.getElementById('results-container').innerHTML =
-          '<h1>No Data</h1><p class="subtitle">No IAT session found.</p><a href="index.html" class="btn btn-primary" style="display:block;text-align:center;margin-top:24px;">Start New Session</a>';
+      if (!s || !s.trials.length) {
+        document.getElementById('root').innerHTML =
+          '<h1>No data</h1><p class="subtitle">No session found.</p>' +
+          '<a href="index.html" class="btn btn-primary btn-block">Start a session</a>';
         return;
       }
 
-      // Compute scores
-      const results = IATScoring.compute(session.trials);
+      const r = IATScoring.compute(s.trials);
+      const d = r.d_national;
 
-      // Ensure session is marked complete
-      if (!session.completed) {
-        IATStorage.completeSession(results.dScore, results.errorRate, results.meanRT);
+      const dEl = document.getElementById('d-value');
+      dEl.textContent = (d > 0 ? '+' : '') + d.toFixed(3);
+      dEl.classList.add(d > 0.15 ? 'pos' : d < -0.15 ? 'neg' : 'neu');
+
+      document.getElementById('d-interp').textContent = IATScoring.interpret(d);
+      document.getElementById('d-effect').textContent = 'Effect size: ' + IATScoring.effectSize(d);
+
+      const stat = (v, l) => `<div class="stat"><div class="stat-value">${v}</div><div class="stat-label">${l}</div></div>`;
+
+      document.getElementById('primary-stats').innerHTML =
+        stat(r.primary.meanNationalGood + 'ms', 'Mean RT · National+Good') +
+        stat(r.primary.meanRegionalGood + 'ms', 'Mean RT · Regional+Good') +
+        stat(r.primary.sdPooled + 'ms', 'Pooled SD') +
+        stat(r.primary.nTrials, 'Trials');
+
+      document.getElementById('robust-stats').innerHTML =
+        stat((r.robustness.d > 0 ? '+' : '') + r.robustness.d.toFixed(3), 'D (3+4 vs 6+7)') +
+        stat(r.robustness.meanNationalGood + 'ms', 'Mean RT · National+Good') +
+        stat(r.robustness.meanRegionalGood + 'ms', 'Mean RT · Regional+Good') +
+        stat(r.robustness.nTrials, 'Trials');
+
+      const g = r.diagnostics;
+      document.getElementById('diag-stats').innerHTML =
+        stat((g.error_rate * 100).toFixed(1) + '%', 'Error rate') +
+        stat((g.pct_fast * 100).toFixed(1) + '%', 'Trials < 300ms') +
+        stat(g.mean_rt + 'ms', 'Mean RT') +
+        stat(g.modality_gap_ms === null ? '—' : (g.modality_gap_ms > 0 ? '+' : '') + g.modality_gap_ms + 'ms', 'Audio − image RT');
+
+      if (g.flags.length) {
+        document.getElementById('flags-card').classList.remove('hidden');
+        document.getElementById('flags').innerHTML =
+          g.flags.map(f => '<li>' + f + '</li>').join('');
       }
 
-      // Version label
-      const versionLabels = {
-        other_congolese: 'IAT 1: Other Congolese',
-        congolese_state: 'IAT 2: Congolese State',
+      const armLabel = {
+        national_first: 'National + Good first',
+        regional_first: 'Regional + Good first',
       };
-      document.getElementById('results-subtitle').textContent =
-        versionLabels[session.iat_version] || session.iat_version;
 
-      // D-Score
-      const dEl = document.getElementById('d-score-value');
-      dEl.textContent = results.dScore.toFixed(3);
-      if (results.dScore > 0.15) dEl.classList.add('positive');
-      else if (results.dScore < -0.15) dEl.classList.add('negative');
-      else dEl.classList.add('neutral');
-
-      document.getElementById('d-interpretation').textContent = results.interpretation;
-      document.getElementById('d-effect').textContent = 'Effect size: ' + results.effectSize;
-
-      // Stats
-      document.getElementById('stat-mean-compat').textContent = results.meanCompatible + 'ms';
-      document.getElementById('stat-mean-incompat').textContent = results.meanIncompatible + 'ms';
-      document.getElementById('stat-error-rate').textContent = (results.errorRate * 100).toFixed(1) + '%';
-      document.getElementById('stat-mean-rt').textContent = results.meanRT + 'ms';
-
-      // Flags
-      if (results.flags.length > 0) {
-        document.getElementById('flags-card').style.display = 'block';
-        document.getElementById('flags-list').innerHTML =
-          results.flags.map(f => '<li>' + f + '</li>').join('');
-      }
-
-      // Session info
-      const orderLabels = { A: 'Order A (Compatible first)', B: 'Order B (Incompatible first)' };
       document.getElementById('session-info').innerHTML = `
-        <p><strong>Respondent:</strong> ${session.respondent_id}</p>
-        <p><strong>Block Order:</strong> ${orderLabels[session.block_order] || session.block_order}</p>
-        <p><strong>Language:</strong> ${session.language}</p>
-        <p><strong>Total Trials:</strong> ${session.trials.length}</p>
-        <p><strong>Started:</strong> ${new Date(session.start_time).toLocaleString()}</p>
-        ${session.end_time ? '<p><strong>Ended:</strong> ' + new Date(session.end_time).toLocaleString() + '</p>' : ''}
-      `;
+        <p><span>Respondent</span><strong>${s.resp_id}</strong></p>
+        <p><span>Arm</span><strong>${armLabel[s.order_arm] || s.order_arm}</strong></p>
+        <p><span>Seed</span><strong>${s.seed}</strong></p>
+        <p><span>Error handling</span><strong>${s.error_handling}</strong></p>
+        <p><span>Kiswahili stimulus</span><strong>${s.swahili_included ? 'included' : 'dropped'}</strong></p>
+        <p><span>Block 5</span><strong>${s.block5_trials} trials</strong></p>
+        <p><span>Total trials</span><strong>${s.trials.length}</strong></p>
+        <p><span>Started</span><strong>${new Date(s.start_time).toLocaleString()}</strong></p>`;
 
-      // Export buttons
-      document.getElementById('btn-export-json').addEventListener('click', () => {
-        const json = IATStorage.exportJSON();
-        const filename = 'iat_' + session.respondent_id + '_' + session.iat_version + '.json';
-        IATStorage.download(json, filename, 'application/json');
-      });
-
-      document.getElementById('btn-export-csv').addEventListener('click', () => {
-        const csv = IATStorage.exportCSV();
-        const filename = 'iat_' + session.respondent_id + '_' + session.iat_version + '.csv';
-        IATStorage.download(csv, filename, 'text/csv');
-      });
+      const stem = 'iat1_' + s.resp_id;
+      document.getElementById('export-json').onclick = () =>
+        IATStorage.download(IATStorage.exportJSON(), stem + '.json', 'application/json');
+      document.getElementById('export-csv').onclick = () =>
+        IATStorage.download(IATStorage.exportCSV(), stem + '.csv', 'text/csv');
     });
     </script>
 </body>

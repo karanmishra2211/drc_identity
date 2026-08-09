@@ -3,53 +3,55 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ST-IAT Setup | DRC National Identity Study</title>
+    <title>IAT #1 — National vs. Regional Identity</title>
     <link rel="stylesheet" href="css/main.css">
 </head>
 <body>
     <div class="container">
-        <h1>ST-IAT Simulator</h1>
-        <p class="subtitle">DRC National Identity Study — Single-Target Implicit Association Test</p>
+        <h1>IAT #1 — National vs. Regional Identity</h1>
+        <p class="subtitle">Implicit Association Test · Instrument spec v1.0 · DRC National Identity Study</p>
 
         <form id="setup-form">
             <div class="card">
-                <h2>Session Setup</h2>
+                <h2>Session</h2>
 
-                <label for="respondent-id">Respondent ID</label>
-                <input type="text" id="respondent-id" placeholder="Leave blank for auto-generated ID">
+                <label for="resp-id">Respondent ID</label>
+                <input type="text" id="resp-id" placeholder="Blank = auto-generated">
 
-                <label for="iat-version">IAT Version</label>
-                <select id="iat-version">
-                    <option value="random">Random Assignment (Recommended)</option>
-                    <option value="other_congolese">IAT 1: Other Congolese</option>
-                    <option value="congolese_state">IAT 2: Congolese State</option>
+                <label for="arm">Counterbalancing arm</label>
+                <select id="arm">
+                    <option value="random">Random (recommended)</option>
+                    <option value="national_first">National + Good first</option>
+                    <option value="regional_first">Regional + Good first</option>
                 </select>
 
-                <label for="block-order">Block Order (Counterbalance)</label>
-                <select id="block-order">
-                    <option value="random">Random (Recommended)</option>
-                    <option value="A">Order A — Target+Good first</option>
-                    <option value="B">Order B — Target+Bad first</option>
-                </select>
+                <label for="seed">Seed <span class="hint">reproduces trial order</span></label>
+                <input type="text" id="seed" placeholder="Blank = auto">
+            </div>
 
-                <label for="language">Stimulus Language</label>
-                <select id="language">
-                    <option value="swahili">Swahili</option>
-                    <option value="french">French</option>
+            <div class="card">
+                <h2>Instrument options</h2>
+
+                <label for="swahili">“Kiswahili” regional stimulus</label>
+                <select id="swahili">
+                    <option value="1">Included</option>
+                    <option value="0">Dropped — swap in “Mashariki”</option>
+                </select>
+                <p class="note">Drop if IAT #2 fields with Kinyarwanda names (cross-priming). Worth dropping regardless: every attribute trial is already Swahili audio.</p>
+
+                <label for="b5">Block 5 length <span class="hint">the one trim lever</span></label>
+                <select id="b5">
+                    <option value="40">40 trials — 200 total (standard)</option>
+                    <option value="20">20 trials — 180 total (~45s saved)</option>
                 </select>
             </div>
 
             <div class="card">
-                <h2>How It Works</h2>
-                <p style="font-size: 0.95rem; color: #555; line-height: 1.6;">
-                    You will sort words into categories as fast as you can.
-                    Press <strong>E</strong> (or tap left) for the left category.
-                    Press <strong>I</strong> (or tap right) for the right category.
-                    The task has 4 blocks of 24 trials each (~5 minutes total).
-                </p>
+                <h2>What happens next</h2>
+                <p class="note">Seven blocks, 200 trials, roughly 7–8 minutes. Press <strong>E</strong> or tap the left of the screen for the left category; <strong>I</strong> or the right of the screen for the right one. Image stimuli show a placeholder frame until the real assets are added; audio stimuli are spoken via the browser as a stand-in for the recorded clips.</p>
             </div>
 
-            <button type="submit" class="btn btn-primary">Start IAT</button>
+            <button type="submit" class="btn btn-primary">Start</button>
         </form>
     </div>
 

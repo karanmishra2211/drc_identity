@@ -1,184 +1,159 @@
 // ============================================================
-// ui.js — IAT UI controller (wires engine to DOM)
+// ui.js — DOM controller for the IAT task
 // ============================================================
 
 const IATUI = {
-  engine: null,
-
   init() {
-    // Read session params from URL
-    const params = new URLSearchParams(window.location.search);
-    const respondentId = params.get('rid') || 'TEST_' + Date.now();
-    const iatVersion = params.get('iat') || 'other_congolese';
-    const blockOrder = params.get('order') || 'A';
-    const language = params.get('lang') || 'swahili';
+    const p = new URLSearchParams(location.search);
+    const respId = p.get('rid') || 'R_' + Date.now();
+    const arm = p.get('arm') || 'national_first';
+    const seed = parseInt(p.get('seed'), 10) || (Date.now() % 2147483647);
 
-    // Initialize storage
-    IATStorage.initSession(respondentId, iatVersion, blockOrder, language);
+    if (p.get('swahili') === '0') IAT_CONFIG.useConditionalSwahili = false;
+    if (p.get('b5')) IAT_CONFIG.block5Trials = parseInt(p.get('b5'), 10);
 
-    // Create engine
+    IATStorage.init({ respId, arm, seed });
+
     this.engine = new IATEngine({
-      iatVersion,
-      blockOrder,
-      onStateChange: (state) => this._handleState(state),
-      onTrialEnd: (data) => this._handleTrialEnd(data),
-      onBlockEnd: (trials, info) => this._handleBlockEnd(trials, info),
-      onComplete: (allTrials) => this._handleComplete(allTrials),
+      arm,
+      seed,
+      onStateChange: s => this._render(s),
+      onTrialEnd: t => IATStorage.recordTrial(t),
+      onComplete: all => this._finish(all),
     });
 
-    // Bind input
     this._bindInput();
-
-    // Start
     this.engine.start();
   },
 
-  // --- State rendering ---
+  // --- Rendering ---
 
-  _handleState(state) {
-    const stimArea = document.getElementById('stimulus-area');
-    const touchTargets = document.getElementById('touch-targets');
-    const blockIntro = document.getElementById('block-intro');
+  _render(state) {
+    const area = document.getElementById('stimulus-area');
+    const touch = document.getElementById('touch-targets');
+    const intro = document.getElementById('block-intro');
 
     switch (state) {
       case 'BLOCK_INTRO':
-        this._showBlockIntro();
+        this._showIntro();
         break;
 
       case 'FIXATION':
-        blockIntro.classList.add('hidden');
-        touchTargets.classList.add('disabled');
-        stimArea.innerHTML = '<div class="fixation">+</div>';
+        intro.classList.add('hidden');
+        touch.classList.add('disabled');
+        area.innerHTML = '<div class="fixation">+</div>';
         break;
 
       case 'STIMULUS':
       case 'AWAITING_RESPONSE': {
-        const trial = this.engine.getCurrentStimulus();
+        const trial = this.engine.getCurrentTrial();
         if (trial) {
-          stimArea.innerHTML = `<div class="stimulus-word ${trial.category}">${trial.stimulus.word}</div>`;
-          touchTargets.classList.remove('disabled');
+          area.innerHTML = this._stimulusHTML(trial.stim);
+          if (trial.stim.modality === 'audio') this._speak(trial.stim.label);
+          touch.classList.remove('disabled');
         }
         this._updateProgress();
         break;
       }
 
       case 'FEEDBACK':
-        touchTargets.classList.add('disabled');
-        stimArea.innerHTML = '<div class="error-feedback">X</div>';
+        touch.classList.add('disabled');
+        area.innerHTML = '<div class="error-feedback">✕</div>';
         break;
 
       case 'ITI':
-        touchTargets.classList.add('disabled');
-        stimArea.innerHTML = '';
-        break;
-
-      case 'COMPLETE':
+        touch.classList.add('disabled');
+        area.innerHTML = '';
         break;
     }
   },
 
-  _showBlockIntro() {
-    const info = this.engine.getCurrentBlockInfo();
-    const blockIntro = document.getElementById('block-intro');
+  // Image assets are placeholders until the real files land; the frame
+  // falls back to a caption if the file is missing.
+  _stimulusHTML(stim) {
+    if (stim.modality === 'image') {
+      return `
+        <div class="stim-image">
+          <div class="frame">
+            <img src="${stim.asset}" alt=""
+                 onerror="this.replaceWith(Object.assign(document.createElement('div'),{className:'caption',textContent:'${stim.label}'}))">
+          </div>
+          <div class="modality-tag">IMAGE</div>
+        </div>`;
+    }
+    return `
+      <div class="stim-audio">
+        <div class="word">${stim.label}</div>
+        <div class="modality-tag">AUDIO</div>
+      </div>`;
+  },
 
-    // Build category labels HTML
-    const leftHTML = info.leftLabels.map(l => {
-      const cls = this._labelClass(l, info.targetLabel);
-      return `<span class="category-label ${cls}">${l}</span>`;
-    }).join('');
+  // Stand-in for the recorded clips so the task is testable now.
+  _speak(text) {
+    if (!('speechSynthesis' in window)) return;
+    speechSynthesis.cancel();
+    const u = new SpeechSynthesisUtterance(text);
+    u.lang = 'sw-KE';
+    u.rate = 1.0;
+    speechSynthesis.speak(u);
+  },
 
-    const rightHTML = info.rightLabels.map(l => {
-      const cls = this._labelClass(l, info.targetLabel);
-      return `<span class="category-label ${cls}">${l}</span>`;
-    }).join('');
+  _showIntro() {
+    const info = this.engine.getBlockInfo();
+    const intro = document.getElementById('block-intro');
 
-    const isFirst = info.blockIndex === 0;
-    const instructionText = isFirst
-      ? 'Sort each word as fast as you can by pressing the LEFT or RIGHT side of the screen (or E / I keys). If you make a mistake, a red X will appear — just keep going.'
-      : 'The categories have changed. Look at the new labels above and sort accordingly.';
+    const labelHTML = cats => cats
+      .map(c => `<span class="category-label">${c.label}${c.sublabel ? `<span class="sub">${c.sublabel}</span>` : ''}</span>`)
+      .join('<span class="label-or">OR</span>');
 
-    blockIntro.innerHTML = `
-      <h2>Block ${info.blockIndex + 1} of ${info.totalBlocks}: ${info.blockDef.label}</h2>
+    const first = info.index === 0;
+    const combined = info.left.length > 1;
+
+    const text = first
+      ? 'Sort each item as fast as you can. Press <strong>E</strong> or tap the left side of the screen for the category on the left; press <strong>I</strong> or tap the right side for the category on the right. A ✕ appears if you are wrong — keep going.'
+      : combined
+        ? 'Two categories now share each key. Sort each item by whichever category it belongs to.'
+        : 'The categories have changed. Check the labels above before you begin.';
+
+    intro.innerHTML = `
+      <div class="eyebrow">BLOCK ${info.index + 1} OF ${info.total} · ${info.trials} TRIALS</div>
+      <h2>${info.label}</h2>
       <div class="mapping">
         <div class="mapping-side">
-          <h3>Left (E key)</h3>
-          <div class="mapping-labels">${leftHTML}</div>
+          <h3>LEFT · E KEY</h3>
+          <div class="mapping-labels">${labelHTML(info.leftLabels)}</div>
         </div>
         <div class="mapping-side">
-          <h3>Right (I key)</h3>
-          <div class="mapping-labels">${rightHTML}</div>
+          <h3>RIGHT · I KEY</h3>
+          <div class="mapping-labels">${labelHTML(info.rightLabels)}</div>
         </div>
       </div>
-      <p class="instruction-text">${instructionText}</p>
-      <button class="continue-btn" id="continue-btn">Press to Begin</button>
-    `;
+      <p class="instruction-text">${text}</p>
+      <button class="continue-btn" id="continue-btn">Begin</button>`;
 
-    blockIntro.classList.remove('hidden');
+    intro.classList.remove('hidden');
 
-    // Also update the persistent category labels
-    this._updateCategoryLabels(info);
+    document.getElementById('left-labels').innerHTML = labelHTML(info.leftLabels)
+      + '<span class="key-hint">E</span>';
+    document.getElementById('right-labels').innerHTML = labelHTML(info.rightLabels)
+      + '<span class="key-hint">I</span>';
 
-    // Bind continue button
-    document.getElementById('continue-btn').addEventListener('click', () => {
-      this.engine.proceedFromIntro();
-    });
-  },
-
-  _updateCategoryLabels(info) {
-    const leftGroup = document.getElementById('left-labels');
-    const rightGroup = document.getElementById('right-labels');
-
-    leftGroup.innerHTML = info.leftLabels.map(l => {
-      const cls = this._labelClass(l, info.targetLabel);
-      return `<span class="category-label ${cls}">${l}</span>`;
-    }).join('');
-
-    rightGroup.innerHTML = info.rightLabels.map(l => {
-      const cls = this._labelClass(l, info.targetLabel);
-      return `<span class="category-label ${cls}">${l}</span>`;
-    }).join('');
-  },
-
-  _labelClass(label, targetLabel) {
-    if (label === 'GOOD') return 'good';
-    if (label === 'BAD') return 'bad';
-    if (label === targetLabel) return 'target';
-    return '';
+    document.getElementById('continue-btn')
+      .addEventListener('click', () => this.engine.proceedFromIntro());
   },
 
   _updateProgress() {
-    const total = IAT_CONFIG.trialsPerBlock * this.engine.blockSequence.length;
-    const done = (this.engine.currentBlockIndex * IAT_CONFIG.trialsPerBlock) + this.engine.currentTrialIndex;
-    const pct = Math.round((done / total) * 100);
-    document.getElementById('progress-fill').style.width = pct + '%';
+    const p = this.engine.progress();
+    const info = this.engine.getBlockInfo();
+    document.getElementById('progress-fill').style.width = p.pct + '%';
     document.getElementById('progress-text').textContent =
-      `Block ${this.engine.currentBlockIndex + 1}/${this.engine.blockSequence.length} | Trial ${this.engine.currentTrialIndex + 1}/${IAT_CONFIG.trialsPerBlock}`;
+      `Block ${info.index + 1}/${info.total} · trial ${this.engine.trialIndex + 1}/${info.trials}`;
   },
 
-  // --- Event handlers ---
-
-  _handleTrialEnd(data) {
-    IATStorage.recordTrial(data);
-  },
-
-  _handleBlockEnd(trials, info) {
-    // Auto-save is handled per trial already
-  },
-
-  _handleComplete(allTrials) {
-    const results = IATScoring.compute(allTrials);
-    const session = IATStorage.getSession();
-    IATStorage.completeSession(results.dScore, results.errorRate, results.meanRT);
-
-    // Navigate to results
-    window.location.href = 'results.html';
-  },
-
-  // --- Input binding ---
+  // --- Input ---
 
   _bindInput() {
-    // Keyboard
-    document.addEventListener('keydown', (e) => {
+    document.addEventListener('keydown', e => {
       if (IAT_CONFIG.keys.left.includes(e.key)) {
         e.preventDefault();
         this.engine.respond('left');
@@ -186,24 +161,25 @@ const IATUI = {
         e.preventDefault();
         this.engine.respond('right');
       } else if (e.key === ' ' || e.key === 'Enter') {
-        // Space/Enter to dismiss block intro
-        const continueBtn = document.getElementById('continue-btn');
-        if (continueBtn) {
+        const btn = document.getElementById('continue-btn');
+        if (btn && !document.getElementById('block-intro').classList.contains('hidden')) {
           e.preventDefault();
-          continueBtn.click();
+          btn.click();
         }
       }
     });
 
-    // Touch
-    document.getElementById('touch-left').addEventListener('click', () => {
-      this.engine.respond('left');
-    });
-    document.getElementById('touch-right').addEventListener('click', () => {
-      this.engine.respond('right');
-    });
+    document.getElementById('touch-left')
+      .addEventListener('click', () => this.engine.respond('left'));
+    document.getElementById('touch-right')
+      .addEventListener('click', () => this.engine.respond('right'));
+  },
+
+  _finish(allTrials) {
+    const results = IATScoring.compute(allTrials);
+    IATStorage.complete(results);
+    location.href = 'results.html';
   },
 };
 
-// Auto-init when DOM ready
 document.addEventListener('DOMContentLoaded', () => IATUI.init());

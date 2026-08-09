@@ -3,35 +3,27 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>ST-IAT Task</title>
+    <title>IAT #1 — Task</title>
     <link rel="stylesheet" href="css/iat.css">
 </head>
 <body>
-    <!-- Category labels (always visible during trials) -->
     <div class="category-labels">
         <div class="label-group left" id="left-labels"></div>
         <div class="label-group right" id="right-labels"></div>
     </div>
 
-    <!-- Center stimulus area -->
     <div class="stimulus-area" id="stimulus-area"></div>
 
-    <!-- Touch targets (left/right halves of screen) -->
     <div class="touch-targets disabled" id="touch-targets">
         <button class="touch-target" id="touch-left" aria-label="Left"></button>
         <button class="touch-target" id="touch-right" aria-label="Right"></button>
     </div>
 
-    <!-- Block intro overlay -->
-    <div class="block-intro hidden" id="block-intro"></div>
+    <div class="block-intro" id="block-intro"></div>
 
-    <!-- Progress bar -->
-    <div class="progress-bar">
-        <div class="progress-fill" id="progress-fill"></div>
-    </div>
+    <div class="progress-bar"><div class="progress-fill" id="progress-fill"></div></div>
     <div class="progress-text" id="progress-text"></div>
 
-    <!-- Scripts (order matters: config first, then modules, then UI) -->
     <script src="js/config.js"></script>
     <script src="js/storage.js"></script>
     <script src="js/scoring.js"></script>

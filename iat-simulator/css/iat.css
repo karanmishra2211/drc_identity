@@ -1,95 +1,72 @@
 /* ============================================================
-   iat.css — Full-screen IAT task styles
-   Dark background, high contrast, large touch targets
+   iat.css — Full-screen task styles
+   Neutral palette: no colour cues that could prime valence.
    ============================================================ */
 
-* {
-  margin: 0;
-  padding: 0;
-  box-sizing: border-box;
-}
+* { margin: 0; padding: 0; box-sizing: border-box; }
 
 html, body {
   height: 100%;
   overflow: hidden;
   font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
-  background: #1a1a2e;
-  color: #ffffff;
+  background: #14141f;
+  color: #fff;
   user-select: none;
   -webkit-user-select: none;
   touch-action: manipulation;
 }
 
-/* --- Category labels (top corners) --- */
+/* --- Category labels, pinned to the top corners --- */
 .category-labels {
   position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
+  top: 0; left: 0; right: 0;
   display: flex;
   justify-content: space-between;
-  padding: 20px 30px;
+  padding: 22px 32px;
   z-index: 10;
   pointer-events: none;
 }
 
-.label-group {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-}
-
-.label-group.left {
-  align-items: flex-start;
-}
-
-.label-group.right {
-  align-items: flex-end;
-}
+.label-group { display: flex; flex-direction: column; gap: 8px; }
+.label-group.left  { align-items: flex-start; }
+.label-group.right { align-items: flex-end; }
 
 .category-label {
-  font-size: 1.3rem;
+  background: #55555f;
+  color: #fff;
+  font-size: 1.15rem;
   font-weight: 700;
-  padding: 6px 16px;
+  padding: 7px 18px;
   border-radius: 8px;
   letter-spacing: 0.05em;
+  text-align: center;
 }
 
-.category-label.good {
-  background: #616161;
-  color: #ffffff;
+.category-label .sub {
+  display: block;
+  font-size: 0.7rem;
+  font-weight: 400;
+  opacity: 0.65;
+  letter-spacing: 0.02em;
+  text-transform: none;
 }
 
-.category-label.bad {
-  background: #616161;
-  color: #ffffff;
+.label-or {
+  font-size: 0.7rem;
+  color: rgba(255,255,255,0.35);
+  letter-spacing: 0.15em;
 }
 
-.category-label.target {
-  background: #1565c0;
-  color: #ffffff;
-}
-
-/* --- Key hints --- */
 .key-hint {
-  font-size: 0.8rem;
-  color: rgba(255, 255, 255, 0.4);
-  margin-top: 4px;
-  padding-left: 4px;
+  font-size: 0.75rem;
+  color: rgba(255,255,255,0.3);
+  letter-spacing: 0.1em;
 }
 
-.label-group.right .key-hint {
-  padding-left: 0;
-  padding-right: 4px;
-}
-
-/* --- Center stimulus area --- */
+/* --- Centre stimulus area --- */
 .stimulus-area {
   position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
+  inset: 0;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -98,166 +75,185 @@ html, body {
 
 .fixation {
   font-size: 4rem;
-  color: rgba(255, 255, 255, 0.6);
   font-weight: 300;
+  color: rgba(255,255,255,0.55);
 }
 
-.stimulus-word {
-  font-size: 3rem;
-  font-weight: 700;
+/* Audio stimulus: the spoken word, rendered neutrally. */
+.stim-audio {
   text-align: center;
-  padding: 0 40px;
+}
+
+.stim-audio .word {
+  font-size: 3.2rem;
+  font-weight: 700;
+  color: #e8e8e8;
+  line-height: 1.2;
+}
+
+.stim-audio .modality-tag {
+  margin-top: 14px;
+  font-size: 0.75rem;
+  letter-spacing: 0.18em;
+  color: rgba(255,255,255,0.3);
+}
+
+/* Image stimulus: framed placeholder until real assets land. */
+.stim-image {
+  text-align: center;
+}
+
+.stim-image .frame {
+  width: 260px;
+  height: 190px;
+  border: 2px solid rgba(255,255,255,0.22);
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  background: rgba(255,255,255,0.04);
+}
+
+.stim-image .frame img {
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+}
+
+.stim-image .caption {
+  font-size: 1.35rem;
+  font-weight: 600;
+  color: #e8e8e8;
   line-height: 1.3;
 }
 
-.stimulus-word.good {
-  color: #e0e0e0;
-}
-
-.stimulus-word.bad {
-  color: #e0e0e0;
-}
-
-.stimulus-word.target {
-  color: #90caf9;
+.stim-image .modality-tag {
+  margin-top: 14px;
+  font-size: 0.75rem;
+  letter-spacing: 0.18em;
+  color: rgba(255,255,255,0.3);
 }
 
 .error-feedback {
   font-size: 5rem;
-  color: #f44336;
   font-weight: 700;
+  color: #e05252;
 }
 
-/* --- Touch targets (invisible, full height) --- */
+/* --- Response areas (screen halves) --- */
 .touch-targets {
   position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
+  inset: 0;
   display: flex;
   z-index: 20;
 }
 
 .touch-target {
   flex: 1;
-  cursor: pointer;
-  background: transparent;
   border: none;
   outline: none;
-  -webkit-tap-highlight-color: rgba(255, 255, 255, 0.05);
+  background: transparent;
+  cursor: pointer;
+  -webkit-tap-highlight-color: rgba(255,255,255,0.05);
 }
 
-.touch-target:active {
-  background: rgba(255, 255, 255, 0.03);
-}
+.touch-target:active { background: rgba(255,255,255,0.03); }
+.touch-targets.disabled { pointer-events: none; }
 
-.touch-targets.disabled .touch-target {
-  pointer-events: none;
-}
-
-/* --- Progress indicator --- */
+/* --- Progress --- */
 .progress-bar {
   position: fixed;
-  bottom: 0;
-  left: 0;
-  right: 0;
-  height: 4px;
-  background: rgba(255, 255, 255, 0.1);
+  bottom: 0; left: 0; right: 0;
+  height: 3px;
+  background: rgba(255,255,255,0.08);
   z-index: 10;
 }
 
 .progress-fill {
   height: 100%;
-  background: rgba(255, 255, 255, 0.3);
-  transition: width 0.2s ease;
+  width: 0;
+  background: rgba(255,255,255,0.3);
+  transition: width 0.25s ease;
 }
 
 .progress-text {
   position: fixed;
-  bottom: 12px;
-  right: 20px;
-  font-size: 0.75rem;
-  color: rgba(255, 255, 255, 0.25);
+  bottom: 12px; right: 22px;
+  font-size: 0.72rem;
+  color: rgba(255,255,255,0.22);
   z-index: 10;
 }
 
 /* --- Block intro overlay --- */
 .block-intro {
   position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: #1a1a2e;
+  inset: 0;
+  background: #14141f;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  z-index: 50;
   padding: 40px;
+  z-index: 50;
 }
 
-.block-intro.hidden {
-  display: none;
+.block-intro .eyebrow {
+  font-size: 0.75rem;
+  letter-spacing: 0.2em;
+  color: rgba(255,255,255,0.35);
+  margin-bottom: 10px;
 }
 
 .block-intro h2 {
-  font-size: 1.8rem;
-  margin-bottom: 30px;
-  color: rgba(255, 255, 255, 0.9);
+  font-size: 1.7rem;
+  font-weight: 600;
+  margin-bottom: 34px;
+  color: rgba(255,255,255,0.92);
 }
 
-.block-intro .mapping {
+.mapping {
   display: flex;
-  gap: 60px;
-  margin-bottom: 40px;
+  gap: 72px;
+  margin-bottom: 34px;
 }
 
-.block-intro .mapping-side {
-  text-align: center;
+.mapping-side { text-align: center; }
+
+.mapping-side h3 {
+  font-size: 0.72rem;
+  letter-spacing: 0.14em;
+  color: rgba(255,255,255,0.4);
+  margin-bottom: 14px;
 }
 
-.block-intro .mapping-side h3 {
-  font-size: 1rem;
-  color: rgba(255, 255, 255, 0.5);
-  margin-bottom: 12px;
-  text-transform: uppercase;
-  letter-spacing: 0.1em;
-}
-
-.block-intro .mapping-labels {
+.mapping-labels {
   display: flex;
   flex-direction: column;
-  gap: 8px;
   align-items: center;
+  gap: 8px;
 }
 
-.block-intro .instruction-text {
-  font-size: 1.1rem;
-  color: rgba(255, 255, 255, 0.6);
+.instruction-text {
+  font-size: 1.02rem;
+  line-height: 1.65;
+  color: rgba(255,255,255,0.62);
   text-align: center;
-  max-width: 500px;
-  line-height: 1.6;
-  margin-bottom: 40px;
+  max-width: 520px;
+  margin-bottom: 36px;
 }
 
-.block-intro .continue-btn {
-  background: rgba(255, 255, 255, 0.15);
-  border: 1px solid rgba(255, 255, 255, 0.3);
-  color: #ffffff;
-  padding: 14px 40px;
-  font-size: 1.1rem;
+.continue-btn {
+  background: rgba(255,255,255,0.14);
+  border: 1px solid rgba(255,255,255,0.28);
+  color: #fff;
+  padding: 14px 42px;
+  font-size: 1.05rem;
   border-radius: 8px;
   cursor: pointer;
   transition: background 0.2s;
 }
 
-.block-intro .continue-btn:hover {
-  background: rgba(255, 255, 255, 0.25);
-}
+.continue-btn:hover { background: rgba(255,255,255,0.24); }
 
-/* --- Hidden state --- */
-.hidden {
-  display: none !important;
-}
+.hidden { display: none !important; }
