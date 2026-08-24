@@ -1,0 +1,1385 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>ST-IAT Simulator (Standalone) | DRC National Identity Study</title>
+<!--
+  =====================================================================
+  ST-IAT Simulator — SINGLE-FILE STANDALONE BUILD
+  ---------------------------------------------------------------------
+  This is the entire simulator (setup + task + results + data export)
+  bundled into ONE HTML file. It has ZERO external dependencies:
+    * no CDNs, no web fonts, no network calls
+    * no separate CSS or JS files
+    * no build step and no local web server required
+  Just download this file and open it in any modern browser
+  (double-click, or File > Open). It works fully offline.
+
+  Data is stored in the browser's localStorage and can be exported
+  as JSON or CSV from the results screen.
+  Generated from the multi-file /iat-simulator project.
+  =====================================================================
+-->
+<style>
+/* ============================================================
+   Combined styles — main (setup/results) + iat (task screen)
+   ============================================================ */
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+  background: #f5f5f7;
+  color: #1a1a1a;
+  min-height: 100vh;
+}
+
+/* --- Screen switching (single-page app) --- */
+.screen { display: none; }
+.screen.active { display: block; }
+
+/* When the IAT task is running, the whole page goes dark & full-screen */
+body.iat-mode {
+  height: 100%;
+  overflow: hidden;
+  background: #1a1a2e;
+  color: #ffffff;
+  user-select: none;
+  -webkit-user-select: none;
+  touch-action: manipulation;
+}
+
+/* ---------- Entry & results page styles (from main.css) ---------- */
+.container {
+  max-width: 640px;
+  margin: 0 auto;
+  padding: 40px 24px;
+}
+
+h1 {
+  font-size: 1.8rem;
+  font-weight: 700;
+  margin-bottom: 8px;
+  color: #1a1a2e;
+}
+
+.subtitle {
+  font-size: 1rem;
+  color: #666;
+  margin-bottom: 32px;
+}
+
+.card {
+  background: #ffffff;
+  border-radius: 12px;
+  padding: 24px;
+  margin-bottom: 20px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+}
+
+.card h2 {
+  font-size: 1.1rem;
+  font-weight: 700;
+  margin-bottom: 16px;
+  color: #1a1a2e;
+}
+
+label {
+  display: block;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: #555;
+  margin-bottom: 6px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+input[type="text"],
+select {
+  width: 100%;
+  padding: 10px 14px;
+  font-size: 1rem;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  background: #fafafa;
+  color: #1a1a1a;
+  margin-bottom: 16px;
+  transition: border-color 0.2s;
+}
+
+input[type="text"]:focus,
+select:focus {
+  outline: none;
+  border-color: #1565c0;
+  background: #fff;
+}
+
+.btn {
+  display: inline-block;
+  padding: 12px 32px;
+  font-size: 1rem;
+  font-weight: 600;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background 0.2s, transform 0.1s;
+  text-decoration: none;
+}
+
+.btn:active { transform: scale(0.98); }
+
+.btn-primary {
+  background: #1a1a2e;
+  color: #ffffff;
+  width: 100%;
+}
+
+.btn-primary:hover { background: #2a2a4e; }
+
+.btn-secondary {
+  background: #e8e8e8;
+  color: #1a1a1a;
+}
+
+.btn-secondary:hover { background: #ddd; }
+
+.btn-group {
+  display: flex;
+  gap: 12px;
+  margin-top: 16px;
+}
+
+.btn-group .btn { flex: 1; }
+
+.d-score-display {
+  text-align: center;
+  padding: 32px;
+}
+
+.d-score-value {
+  font-size: 4rem;
+  font-weight: 700;
+  color: #1a1a2e;
+  line-height: 1;
+}
+
+.d-score-label {
+  font-size: 0.85rem;
+  color: #999;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  margin-top: 8px;
+}
+
+.d-score-interpretation {
+  font-size: 1.1rem;
+  color: #555;
+  margin-top: 12px;
+}
+
+.d-score-effect {
+  font-size: 0.9rem;
+  color: #888;
+  margin-top: 4px;
+}
+
+.stat-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+
+.stat-item {
+  text-align: center;
+  padding: 12px;
+  background: #f8f8fa;
+  border-radius: 8px;
+}
+
+.stat-value {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: #1a1a2e;
+}
+
+.stat-label {
+  font-size: 0.75rem;
+  color: #888;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-top: 4px;
+}
+
+.flags-list { list-style: none; padding: 0; }
+
+.flags-list li {
+  padding: 8px 12px;
+  background: #fff3e0;
+  border-left: 3px solid #ff9800;
+  border-radius: 4px;
+  margin-bottom: 8px;
+  font-size: 0.9rem;
+  color: #e65100;
+}
+
+.session-info { font-size: 0.85rem; color: #888; }
+.session-info p { margin-bottom: 4px; }
+
+.positive { color: #2e7d32; }
+.negative { color: #c62828; }
+.neutral  { color: #888; }
+
+/* ---------- Full-screen IAT task styles (from iat.css) ---------- */
+/* These live inside #screen-iat, which is display:none unless active,
+   so they never affect the setup/results screens. */
+
+.category-labels {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  display: flex;
+  justify-content: space-between;
+  padding: 20px 30px;
+  z-index: 10;
+  pointer-events: none;
+}
+
+.label-group {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.label-group.left { align-items: flex-start; }
+.label-group.right { align-items: flex-end; }
+
+.category-label {
+  font-size: 1.3rem;
+  font-weight: 700;
+  padding: 6px 16px;
+  border-radius: 8px;
+  letter-spacing: 0.05em;
+}
+
+.category-label.good   { background: #2e7d32; color: #ffffff; }
+.category-label.bad    { background: #c62828; color: #ffffff; }
+.category-label.target { background: #1565c0; color: #ffffff; }
+
+.key-hint {
+  font-size: 0.8rem;
+  color: rgba(255, 255, 255, 0.4);
+  margin-top: 4px;
+  padding-left: 4px;
+}
+
+.label-group.right .key-hint {
+  padding-left: 0;
+  padding-right: 4px;
+}
+
+.stimulus-area {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 5;
+}
+
+.fixation {
+  font-size: 4rem;
+  color: rgba(255, 255, 255, 0.6);
+  font-weight: 300;
+}
+
+.stimulus-word {
+  font-size: 3rem;
+  font-weight: 700;
+  text-align: center;
+  padding: 0 40px;
+  line-height: 1.3;
+}
+
+.stimulus-word.good   { color: #81c784; }
+.stimulus-word.bad    { color: #ef9a9a; }
+.stimulus-word.target { color: #90caf9; }
+
+.error-feedback {
+  font-size: 5rem;
+  color: #f44336;
+  font-weight: 700;
+}
+
+.touch-targets {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  display: flex;
+  z-index: 20;
+}
+
+.touch-target {
+  flex: 1;
+  cursor: pointer;
+  background: transparent;
+  border: none;
+  outline: none;
+  -webkit-tap-highlight-color: rgba(255, 255, 255, 0.05);
+}
+
+.touch-target:active { background: rgba(255, 255, 255, 0.03); }
+.touch-targets.disabled .touch-target { pointer-events: none; }
+
+.progress-bar {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 4px;
+  background: rgba(255, 255, 255, 0.1);
+  z-index: 10;
+}
+
+.progress-fill {
+  height: 100%;
+  background: rgba(255, 255, 255, 0.3);
+  transition: width 0.2s ease;
+}
+
+.progress-text {
+  position: fixed;
+  bottom: 12px;
+  right: 20px;
+  font-size: 0.75rem;
+  color: rgba(255, 255, 255, 0.25);
+  z-index: 10;
+}
+
+.block-intro {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: #1a1a2e;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  z-index: 50;
+  padding: 40px;
+}
+
+.block-intro.hidden { display: none; }
+
+.block-intro h2 {
+  font-size: 1.8rem;
+  margin-bottom: 30px;
+  color: rgba(255, 255, 255, 0.9);
+}
+
+.block-intro .mapping {
+  display: flex;
+  gap: 60px;
+  margin-bottom: 40px;
+}
+
+.block-intro .mapping-side { text-align: center; }
+
+.block-intro .mapping-side h3 {
+  font-size: 1rem;
+  color: rgba(255, 255, 255, 0.5);
+  margin-bottom: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+}
+
+.block-intro .mapping-labels {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  align-items: center;
+}
+
+.block-intro .instruction-text {
+  font-size: 1.1rem;
+  color: rgba(255, 255, 255, 0.6);
+  text-align: center;
+  max-width: 500px;
+  line-height: 1.6;
+  margin-bottom: 40px;
+}
+
+.block-intro .continue-btn {
+  background: rgba(255, 255, 255, 0.15);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  color: #ffffff;
+  padding: 14px 40px;
+  font-size: 1.1rem;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.block-intro .continue-btn:hover { background: rgba(255, 255, 255, 0.25); }
+
+.hidden { display: none !important; }
+</style>
+</head>
+<body>
+
+<!-- ============================================================
+     SCREEN 1 — Setup / entry
+     ============================================================ -->
+<div id="screen-setup" class="screen active">
+  <div class="container">
+    <h1>ST-IAT Simulator</h1>
+    <p class="subtitle">DRC National Identity Study — Single-Target Implicit Association Test</p>
+
+    <form id="setup-form">
+      <div class="card">
+        <h2>Session Setup</h2>
+
+        <label for="respondent-id">Respondent ID</label>
+        <input type="text" id="respondent-id" placeholder="Leave blank for auto-generated ID">
+
+        <label for="iat-version">IAT Version</label>
+        <select id="iat-version">
+          <option value="random">Random Assignment (Recommended)</option>
+          <option value="other_congolese">IAT 1: Other Congolese</option>
+          <option value="congolese_state">IAT 2: Congolese State</option>
+        </select>
+
+        <label for="block-order">Block Order (Counterbalance)</label>
+        <select id="block-order">
+          <option value="random">Random (Recommended)</option>
+          <option value="A">Order A — Target+Good first</option>
+          <option value="B">Order B — Target+Bad first</option>
+        </select>
+
+        <label for="language">Stimulus Language</label>
+        <select id="language">
+          <option value="swahili">Swahili</option>
+          <option value="french">French</option>
+        </select>
+      </div>
+
+      <div class="card">
+        <h2>How It Works</h2>
+        <p style="font-size: 0.95rem; color: #555; line-height: 1.6;">
+          You will sort words into categories as fast as you can.
+          Press <strong>E</strong> (or tap left) for the left category.
+          Press <strong>I</strong> (or tap right) for the right category.
+          The task has 4 blocks of 24 trials each (~5 minutes total).
+        </p>
+      </div>
+
+      <button type="submit" class="btn btn-primary">Start IAT</button>
+    </form>
+  </div>
+</div>
+
+<!-- ============================================================
+     SCREEN 2 — IAT task (full-screen, dark)
+     ============================================================ -->
+<div id="screen-iat" class="screen">
+  <div class="category-labels">
+    <div class="label-group left" id="left-labels"></div>
+    <div class="label-group right" id="right-labels"></div>
+  </div>
+
+  <div class="stimulus-area" id="stimulus-area"></div>
+
+  <div class="touch-targets disabled" id="touch-targets">
+    <button class="touch-target" id="touch-left" aria-label="Left"></button>
+    <button class="touch-target" id="touch-right" aria-label="Right"></button>
+  </div>
+
+  <div class="block-intro hidden" id="block-intro"></div>
+
+  <div class="progress-bar">
+    <div class="progress-fill" id="progress-fill"></div>
+  </div>
+  <div class="progress-text" id="progress-text"></div>
+</div>
+
+<!-- ============================================================
+     SCREEN 3 — Results
+     ============================================================ -->
+<div id="screen-results" class="screen">
+  <div class="container" id="results-container">
+    <h1>IAT Complete</h1>
+    <p class="subtitle" id="results-subtitle"></p>
+
+    <div class="card">
+      <div class="d-score-display">
+        <div class="d-score-value" id="d-score-value">—</div>
+        <div class="d-score-label">D-Score</div>
+        <div class="d-score-interpretation" id="d-interpretation"></div>
+        <div class="d-score-effect" id="d-effect"></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>Summary Statistics</h2>
+      <div class="stat-grid">
+        <div class="stat-item">
+          <div class="stat-value" id="stat-mean-compat">—</div>
+          <div class="stat-label">Mean RT (Compatible)</div>
+        </div>
+        <div class="stat-item">
+          <div class="stat-value" id="stat-mean-incompat">—</div>
+          <div class="stat-label">Mean RT (Incompatible)</div>
+        </div>
+        <div class="stat-item">
+          <div class="stat-value" id="stat-error-rate">—</div>
+          <div class="stat-label">Error Rate</div>
+        </div>
+        <div class="stat-item">
+          <div class="stat-value" id="stat-mean-rt">—</div>
+          <div class="stat-label">Overall Mean RT</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card" id="flags-card" style="display:none;">
+      <h2>Data Quality Flags</h2>
+      <ul class="flags-list" id="flags-list"></ul>
+    </div>
+
+    <div class="card">
+      <h2>Session Info</h2>
+      <div class="session-info" id="session-info"></div>
+    </div>
+
+    <div class="btn-group">
+      <button class="btn btn-secondary" id="btn-export-json">Export JSON</button>
+      <button class="btn btn-secondary" id="btn-export-csv">Export CSV</button>
+    </div>
+    <div style="margin-top: 12px;">
+      <button class="btn btn-primary" id="btn-new-session" style="display:block; text-align:center;">New Session</button>
+    </div>
+  </div>
+</div>
+
+<script>
+/* ============================================================
+   config — Stimuli, timing constants, and block definitions
+   ============================================================ */
+const IAT_CONFIG = {
+  timing: {
+    fixation: 500,
+    errorFeedback: 200,
+    iti: 250,
+    maxRT: 10000,
+    minRT: 300,
+    minRTPercent: 0.10,
+    maxErrorRate: 0.30,
+  },
+
+  trialsPerBlock: 24,
+
+  evaluative: {
+    good: [
+      { id: 'furaha',  word: 'Furaha',  translation: 'Joy / Happiness' },
+      { id: 'amani',   word: 'Amani',   translation: 'Peace' },
+      { id: 'upendo',  word: 'Upendo',  translation: 'Love' },
+      { id: 'rafiki',  word: 'Rafiki',  translation: 'Friend' },
+      { id: 'baraka',  word: 'Baraka',  translation: 'Blessing' },
+      { id: 'uzuri',   word: 'Uzuri',   translation: 'Beauty' },
+    ],
+    bad: [
+      { id: 'huzuni',   word: 'Huzuni',   translation: 'Sadness' },
+      { id: 'hatari',   word: 'Hatari',   translation: 'Danger' },
+      { id: 'chuki',    word: 'Chuki',    translation: 'Hatred' },
+      { id: 'adui',     word: 'Adui',     translation: 'Enemy' },
+      { id: 'maumivu',  word: 'Maumivu',  translation: 'Pain' },
+      { id: 'hofu',     word: 'Hofu',     translation: 'Fear' },
+    ],
+  },
+
+  targets: {
+    other_congolese: {
+      label: 'Other Congolese',
+      labelSwahili: 'Wacongo Wengine',
+      stimuli: [
+        { id: 'kinois',           word: 'Kinois',           translation: 'Person from Kinshasa' },
+        { id: 'mtu_wa_kinshasa',  word: 'Mtu wa Kinshasa',  translation: 'Person from Kinshasa (Sw.)' },
+        { id: 'katangais',        word: 'Katangais',        translation: 'Person from Katanga' },
+        { id: 'mtu_wa_lubumbashi',word: 'Mtu wa Lubumbashi',translation: 'Person from Lubumbashi' },
+        { id: 'mukongo',          word: 'Mukongo',          translation: 'Person from Kongo Central' },
+        { id: 'lingala',          word: 'Lingala',          translation: 'The Lingala language' },
+      ],
+    },
+    congolese_state: {
+      label: 'Congolese State',
+      labelSwahili: 'Serikali ya Congo',
+      stimuli: [
+        { id: 'serikali',         word: 'Serikali',         translation: 'Government' },
+        { id: 'drapeau_ya_congo', word: 'Drapeau ya Congo', translation: 'Congolese flag' },
+        { id: 'fardc',            word: 'FARDC',            translation: 'Congolese armed forces' },
+        { id: 'polisi',           word: 'Polisi',           translation: 'Police' },
+        { id: 'carte_identite',   word: "Carte d'identité", translation: 'National ID card' },
+        { id: 'kinshasa',         word: 'Kinshasa',         translation: 'The capital' },
+      ],
+    },
+  },
+
+  blocks: {
+    1: { type: 'practice',     leftCategories: ['good'],           rightCategories: ['bad'],           isTest: false, label: 'Practice' },
+    2: { type: 'compatible',   leftCategories: ['target', 'good'], rightCategories: ['bad'],           isTest: true,  label: 'Combined A' },
+    3: { type: 'practice',     leftCategories: ['good'],           rightCategories: ['bad'],           isTest: false, label: 'Re-practice' },
+    4: { type: 'incompatible', leftCategories: ['good'],           rightCategories: ['target', 'bad'], isTest: true,  label: 'Combined B' },
+  },
+
+  blockOrders: {
+    A: [1, 2, 3, 4],
+    B: [1, 4, 3, 2],
+  },
+
+  keys: {
+    left: ['e', 'E', 'ArrowLeft'],
+    right: ['i', 'I', 'ArrowRight'],
+  },
+
+  categoryLabels: {
+    good: 'GOOD',
+    bad: 'BAD',
+  },
+};
+
+/* ============================================================
+   storage — Data persistence and export
+   ============================================================ */
+const IATStorage = {
+  STORAGE_KEY: 'iat_session',
+
+  initSession(respondentId, iatVersion, blockOrder, language) {
+    const session = {
+      respondent_id: respondentId,
+      iat_version: iatVersion,
+      block_order: blockOrder,
+      language: language,
+      start_time: new Date().toISOString(),
+      end_time: null,
+      trials: [],
+      completed: false,
+    };
+    this._save(session);
+    return session;
+  },
+
+  getSession() {
+    try {
+      const raw = localStorage.getItem(this.STORAGE_KEY);
+      return raw ? JSON.parse(raw) : null;
+    } catch (e) {
+      // localStorage may be unavailable (e.g. some file:// contexts) —
+      // fall back to the in-memory copy so the task still runs.
+      return this._memory || null;
+    }
+  },
+
+  recordTrial(trialData) {
+    const session = this.getSession();
+    if (!session) return;
+    session.trials.push(trialData);
+    this._save(session);
+  },
+
+  recordBlock(trials) {
+    const session = this.getSession();
+    if (!session) return;
+    session.trials.push(...trials);
+    this._save(session);
+  },
+
+  completeSession(dScore, errorRate, meanRT) {
+    const session = this.getSession();
+    if (!session) return;
+    session.end_time = new Date().toISOString();
+    session.completed = true;
+    session.d_score = dScore;
+    session.error_rate = errorRate;
+    session.mean_rt = meanRT;
+    this._save(session);
+  },
+
+  clearSession() {
+    this._memory = null;
+    try { localStorage.removeItem(this.STORAGE_KEY); } catch (e) {}
+  },
+
+  exportJSON() {
+    const session = this.getSession();
+    return JSON.stringify(session, null, 2);
+  },
+
+  exportCSV() {
+    const session = this.getSession();
+    if (!session || !session.trials.length) return '';
+
+    const header = [
+      'respondent_id', 'iat_version', 'block_order', 'language',
+      'block_num', 'block_type', 'is_test_block', 'trial_num',
+      'stimulus_id', 'stimulus_word', 'stimulus_category',
+      'expected_side', 'response_side', 'rt_ms', 'correct',
+    ];
+
+    const rows = session.trials.map(t => [
+      session.respondent_id,
+      session.iat_version,
+      session.block_order,
+      session.language,
+      t.block_num,
+      t.block_type,
+      t.is_test_block ? 1 : 0,
+      t.trial_num,
+      t.stimulus_id,
+      t.stimulus_word,
+      t.stimulus_category,
+      t.expected_side,
+      t.response_side,
+      t.rt_ms,
+      t.correct ? 1 : 0,
+    ]);
+
+    return [header.join(','), ...rows.map(r => r.join(','))].join('\n');
+  },
+
+  download(content, filename, mimeType) {
+    const blob = new Blob([content], { type: mimeType });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    a.click();
+    URL.revokeObjectURL(url);
+  },
+
+  _save(session) {
+    this._memory = session; // in-memory mirror for storage-less contexts
+    try {
+      localStorage.setItem(this.STORAGE_KEY, JSON.stringify(session));
+    } catch (e) {}
+  },
+};
+
+/* ============================================================
+   scoring — D-score algorithm (Greenwald et al., 2003)
+   ============================================================ */
+const IATScoring = {
+  compute(trials) {
+    const testTrials = trials.filter(t => t.is_test_block);
+    const compatibleTrials = testTrials.filter(t => t.block_type === 'compatible');
+    const incompatibleTrials = testTrials.filter(t => t.block_type === 'incompatible');
+
+    const flags = [];
+
+    const cleanCompatible = compatibleTrials.filter(t => t.rt_ms <= IAT_CONFIG.timing.maxRT);
+    const cleanIncompatible = incompatibleTrials.filter(t => t.rt_ms <= IAT_CONFIG.timing.maxRT);
+    const removedSlow = testTrials.length - cleanCompatible.length - cleanIncompatible.length;
+    if (removedSlow > 0) flags.push(`Removed ${removedSlow} trials with RT > 10s`);
+
+    const allClean = [...cleanCompatible, ...cleanIncompatible];
+    const fastTrials = allClean.filter(t => t.rt_ms < IAT_CONFIG.timing.minRT);
+    const fastPercent = allClean.length > 0 ? fastTrials.length / allClean.length : 0;
+    if (fastPercent > IAT_CONFIG.timing.minRTPercent) {
+      flags.push(`WARNING: ${(fastPercent * 100).toFixed(1)}% of trials < ${IAT_CONFIG.timing.minRT}ms (random responding?)`);
+    }
+
+    const totalErrors = allClean.filter(t => !t.correct).length;
+    const errorRate = allClean.length > 0 ? totalErrors / allClean.length : 0;
+    if (errorRate > IAT_CONFIG.timing.maxErrorRate) {
+      flags.push(`WARNING: Error rate ${(errorRate * 100).toFixed(1)}% exceeds ${IAT_CONFIG.timing.maxErrorRate * 100}% threshold`);
+    }
+
+    const correctCompatible = cleanCompatible.filter(t => t.correct);
+    const correctIncompatible = cleanIncompatible.filter(t => t.correct);
+
+    const meanCompatible = this._mean(correctCompatible.map(t => t.rt_ms));
+    const meanIncompatible = this._mean(correctIncompatible.map(t => t.rt_ms));
+
+    const allCorrectRTs = [
+      ...correctCompatible.map(t => t.rt_ms),
+      ...correctIncompatible.map(t => t.rt_ms),
+    ];
+    const sdPooled = this._sd(allCorrectRTs);
+
+    const dScore = sdPooled > 0 ? (meanIncompatible - meanCompatible) / sdPooled : 0;
+
+    const meanRT = this._mean(allClean.map(t => t.rt_ms));
+
+    return {
+      dScore: Math.round(dScore * 1000) / 1000,
+      meanCompatible: Math.round(meanCompatible),
+      meanIncompatible: Math.round(meanIncompatible),
+      sdPooled: Math.round(sdPooled),
+      errorRate: Math.round(errorRate * 1000) / 1000,
+      meanRT: Math.round(meanRT),
+      totalTrials: allClean.length,
+      flags,
+      interpretation: this._interpret(dScore),
+      effectSize: this._effectSize(dScore),
+    };
+  },
+
+  _mean(arr) {
+    if (arr.length === 0) return 0;
+    return arr.reduce((a, b) => a + b, 0) / arr.length;
+  },
+
+  _sd(arr) {
+    if (arr.length < 2) return 0;
+    const m = this._mean(arr);
+    const variance = arr.reduce((sum, x) => sum + (x - m) ** 2, 0) / (arr.length - 1);
+    return Math.sqrt(variance);
+  },
+
+  _interpret(d) {
+    if (d > 0.15) return 'Positive implicit attitude toward target';
+    if (d < -0.15) return 'Negative implicit attitude toward target';
+    return 'Neutral implicit attitude';
+  },
+
+  _effectSize(d) {
+    const abs = Math.abs(d);
+    if (abs >= 0.65) return 'Large';
+    if (abs >= 0.35) return 'Medium';
+    if (abs >= 0.15) return 'Small';
+    return 'Negligible';
+  },
+};
+
+/* ============================================================
+   engine — Core IAT trial engine (state machine)
+   ============================================================ */
+class IATEngine {
+  constructor({ iatVersion, blockOrder, onStateChange, onTrialEnd, onBlockEnd, onComplete }) {
+    this.iatVersion = iatVersion;
+    this.blockOrder = blockOrder;
+    this.onStateChange = onStateChange;
+    this.onTrialEnd = onTrialEnd;
+    this.onBlockEnd = onBlockEnd;
+    this.onComplete = onComplete;
+
+    this.targetConfig = IAT_CONFIG.targets[iatVersion];
+    this.blockSequence = IAT_CONFIG.blockOrders[blockOrder];
+    this.currentBlockIndex = 0;
+    this.currentTrialIndex = 0;
+    this.trials = [];
+    this.blockTrials = [];
+    this.allTrialData = [];
+    this.state = 'IDLE';
+    this.stimulusOnsetTime = 0;
+    this._timeoutId = null;
+  }
+
+  start() {
+    this.currentBlockIndex = 0;
+    this.allTrialData = [];
+    this._startBlock();
+  }
+
+  respond(side) {
+    if (this.state !== 'AWAITING_RESPONSE') return;
+
+    const rt = performance.now() - this.stimulusOnsetTime;
+    const trial = this.trials[this.currentTrialIndex];
+    const correct = side === trial.expectedSide;
+
+    const trialData = {
+      block_num: this.blockSequence[this.currentBlockIndex],
+      block_type: trial.blockType,
+      is_test_block: trial.isTest,
+      trial_num: this.currentTrialIndex + 1,
+      stimulus_id: trial.stimulus.id,
+      stimulus_word: trial.stimulus.word,
+      stimulus_category: trial.category,
+      expected_side: trial.expectedSide,
+      response_side: side,
+      rt_ms: Math.round(rt),
+      correct: correct,
+    };
+
+    this.blockTrials.push(trialData);
+    this.allTrialData.push(trialData);
+
+    if (this.onTrialEnd) this.onTrialEnd(trialData);
+
+    if (!correct) {
+      this._setState('FEEDBACK');
+      this._timeoutId = setTimeout(() => this._iti(), IAT_CONFIG.timing.errorFeedback);
+    } else {
+      this._iti();
+    }
+  }
+
+  getCurrentBlockInfo() {
+    const blockNum = this.blockSequence[this.currentBlockIndex];
+    const blockDef = IAT_CONFIG.blocks[blockNum];
+    return {
+      blockNum,
+      blockDef,
+      blockIndex: this.currentBlockIndex,
+      totalBlocks: this.blockSequence.length,
+      targetLabel: this.targetConfig.label,
+      leftLabels: this._resolveLabels(blockDef.leftCategories),
+      rightLabels: this._resolveLabels(blockDef.rightCategories),
+    };
+  }
+
+  getCurrentStimulus() {
+    if (this.currentTrialIndex < this.trials.length) {
+      return this.trials[this.currentTrialIndex];
+    }
+    return null;
+  }
+
+  destroy() {
+    if (this._timeoutId) clearTimeout(this._timeoutId);
+  }
+
+  _startBlock() {
+    const blockNum = this.blockSequence[this.currentBlockIndex];
+    const blockDef = IAT_CONFIG.blocks[blockNum];
+    this.trials = this._generateTrials(blockDef, blockNum);
+    this.currentTrialIndex = 0;
+    this.blockTrials = [];
+    this._setState('BLOCK_INTRO');
+  }
+
+  proceedFromIntro() {
+    this._runTrial();
+  }
+
+  _runTrial() {
+    if (this.currentTrialIndex >= this.trials.length) {
+      this._endBlock();
+      return;
+    }
+    this._setState('FIXATION');
+    this._timeoutId = setTimeout(() => {
+      this._setState('STIMULUS');
+      this.stimulusOnsetTime = performance.now();
+      this._setState('AWAITING_RESPONSE');
+    }, IAT_CONFIG.timing.fixation);
+  }
+
+  _iti() {
+    this._setState('ITI');
+    this._timeoutId = setTimeout(() => {
+      this.currentTrialIndex++;
+      this._runTrial();
+    }, IAT_CONFIG.timing.iti);
+  }
+
+  _endBlock() {
+    if (this.onBlockEnd) this.onBlockEnd(this.blockTrials, this.getCurrentBlockInfo());
+
+    this.currentBlockIndex++;
+    if (this.currentBlockIndex >= this.blockSequence.length) {
+      this._setState('COMPLETE');
+      if (this.onComplete) this.onComplete(this.allTrialData);
+    } else {
+      this._startBlock();
+    }
+  }
+
+  _setState(state) {
+    this.state = state;
+    if (this.onStateChange) this.onStateChange(state);
+  }
+
+  _generateTrials(blockDef, blockNum) {
+    const allCategories = [...blockDef.leftCategories, ...blockDef.rightCategories];
+    const hasTarget = allCategories.includes('target');
+    const n = IAT_CONFIG.trialsPerBlock;
+
+    let pool = [];
+
+    if (hasTarget) {
+      const nTarget = Math.floor(n / 2);
+      const nEval = n - nTarget;
+      const targetStimuli = this._sampleStimuli(this.targetConfig.stimuli, nTarget, 'target');
+      const goodStimuli = this._sampleStimuli(IAT_CONFIG.evaluative.good, Math.floor(nEval / 2), 'good');
+      const badStimuli = this._sampleStimuli(IAT_CONFIG.evaluative.bad, nEval - Math.floor(nEval / 2), 'bad');
+      pool = [...targetStimuli, ...goodStimuli, ...badStimuli];
+    } else {
+      const nGood = Math.floor(n / 2);
+      const nBad = n - nGood;
+      const goodStimuli = this._sampleStimuli(IAT_CONFIG.evaluative.good, nGood, 'good');
+      const badStimuli = this._sampleStimuli(IAT_CONFIG.evaluative.bad, nBad, 'bad');
+      pool = [...goodStimuli, ...badStimuli];
+    }
+
+    this._shuffle(pool);
+
+    return pool.map(item => {
+      let expectedSide;
+      if (blockDef.leftCategories.includes(item.category)) {
+        expectedSide = 'left';
+      } else {
+        expectedSide = 'right';
+      }
+      return {
+        ...item,
+        expectedSide,
+        blockType: blockDef.type,
+        isTest: blockDef.isTest,
+      };
+    });
+  }
+
+  _sampleStimuli(stimuliArray, count, category) {
+    const result = [];
+    for (let i = 0; i < count; i++) {
+      const stim = stimuliArray[i % stimuliArray.length];
+      result.push({ stimulus: stim, category });
+    }
+    return result;
+  }
+
+  _shuffle(arr) {
+    for (let i = arr.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [arr[i], arr[j]] = [arr[j], arr[i]];
+    }
+  }
+
+  _resolveLabels(categories) {
+    return categories.map(c => {
+      if (c === 'target') return this.targetConfig.label;
+      if (c === 'good') return IAT_CONFIG.categoryLabels.good;
+      if (c === 'bad') return IAT_CONFIG.categoryLabels.bad;
+      return c;
+    });
+  }
+}
+
+/* ============================================================
+   Screen router — swaps between setup / task / results
+   ============================================================ */
+function showScreen(id) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+  // The IAT task screen puts the whole page into dark, full-screen mode.
+  document.body.classList.toggle('iat-mode', id === 'screen-iat');
+  window.scrollTo(0, 0);
+}
+
+/* ============================================================
+   IATUI — task UI controller (wires engine to DOM)
+   ============================================================ */
+const IATUI = {
+  engine: null,
+
+  init(params) {
+    const respondentId = params.rid || 'TEST_' + Date.now();
+    const iatVersion = params.iat || 'other_congolese';
+    const blockOrder = params.order || 'A';
+    const language = params.lang || 'swahili';
+
+    IATStorage.initSession(respondentId, iatVersion, blockOrder, language);
+
+    this.engine = new IATEngine({
+      iatVersion,
+      blockOrder,
+      onStateChange: (state) => this._handleState(state),
+      onTrialEnd: (data) => this._handleTrialEnd(data),
+      onBlockEnd: (trials, info) => this._handleBlockEnd(trials, info),
+      onComplete: (allTrials) => this._handleComplete(allTrials),
+    });
+
+    showScreen('screen-iat');
+    this.engine.start();
+  },
+
+  _handleState(state) {
+    const stimArea = document.getElementById('stimulus-area');
+    const touchTargets = document.getElementById('touch-targets');
+    const blockIntro = document.getElementById('block-intro');
+
+    switch (state) {
+      case 'BLOCK_INTRO':
+        this._showBlockIntro();
+        break;
+
+      case 'FIXATION':
+        blockIntro.classList.add('hidden');
+        touchTargets.classList.add('disabled');
+        stimArea.innerHTML = '<div class="fixation">+</div>';
+        break;
+
+      case 'STIMULUS':
+      case 'AWAITING_RESPONSE': {
+        const trial = this.engine.getCurrentStimulus();
+        if (trial) {
+          stimArea.innerHTML = `<div class="stimulus-word ${trial.category}">${trial.stimulus.word}</div>`;
+          touchTargets.classList.remove('disabled');
+        }
+        this._updateProgress();
+        break;
+      }
+
+      case 'FEEDBACK':
+        touchTargets.classList.add('disabled');
+        stimArea.innerHTML = '<div class="error-feedback">X</div>';
+        break;
+
+      case 'ITI':
+        touchTargets.classList.add('disabled');
+        stimArea.innerHTML = '';
+        break;
+
+      case 'COMPLETE':
+        break;
+    }
+  },
+
+  _showBlockIntro() {
+    const info = this.engine.getCurrentBlockInfo();
+    const blockIntro = document.getElementById('block-intro');
+
+    const leftHTML = info.leftLabels.map(l => {
+      const cls = this._labelClass(l, info.targetLabel);
+      return `<span class="category-label ${cls}">${l}</span>`;
+    }).join('');
+
+    const rightHTML = info.rightLabels.map(l => {
+      const cls = this._labelClass(l, info.targetLabel);
+      return `<span class="category-label ${cls}">${l}</span>`;
+    }).join('');
+
+    const isFirst = info.blockIndex === 0;
+    const instructionText = isFirst
+      ? 'Sort each word as fast as you can by pressing the LEFT or RIGHT side of the screen (or E / I keys). If you make a mistake, a red X will appear — just keep going.'
+      : 'The categories have changed. Look at the new labels above and sort accordingly.';
+
+    blockIntro.innerHTML = `
+      <h2>Block ${info.blockIndex + 1} of ${info.totalBlocks}: ${info.blockDef.label}</h2>
+      <div class="mapping">
+        <div class="mapping-side">
+          <h3>Left (E key)</h3>
+          <div class="mapping-labels">${leftHTML}</div>
+        </div>
+        <div class="mapping-side">
+          <h3>Right (I key)</h3>
+          <div class="mapping-labels">${rightHTML}</div>
+        </div>
+      </div>
+      <p class="instruction-text">${instructionText}</p>
+      <button class="continue-btn" id="continue-btn">Press to Begin</button>
+    `;
+
+    blockIntro.classList.remove('hidden');
+
+    this._updateCategoryLabels(info);
+
+    document.getElementById('continue-btn').addEventListener('click', () => {
+      this.engine.proceedFromIntro();
+    });
+  },
+
+  _updateCategoryLabels(info) {
+    const leftGroup = document.getElementById('left-labels');
+    const rightGroup = document.getElementById('right-labels');
+
+    leftGroup.innerHTML = info.leftLabels.map(l => {
+      const cls = this._labelClass(l, info.targetLabel);
+      return `<span class="category-label ${cls}">${l}</span>`;
+    }).join('');
+
+    rightGroup.innerHTML = info.rightLabels.map(l => {
+      const cls = this._labelClass(l, info.targetLabel);
+      return `<span class="category-label ${cls}">${l}</span>`;
+    }).join('');
+  },
+
+  _labelClass(label, targetLabel) {
+    if (label === 'GOOD') return 'good';
+    if (label === 'BAD') return 'bad';
+    if (label === targetLabel) return 'target';
+    return '';
+  },
+
+  _updateProgress() {
+    const total = IAT_CONFIG.trialsPerBlock * this.engine.blockSequence.length;
+    const done = (this.engine.currentBlockIndex * IAT_CONFIG.trialsPerBlock) + this.engine.currentTrialIndex;
+    const pct = Math.round((done / total) * 100);
+    document.getElementById('progress-fill').style.width = pct + '%';
+    document.getElementById('progress-text').textContent =
+      `Block ${this.engine.currentBlockIndex + 1}/${this.engine.blockSequence.length} | Trial ${this.engine.currentTrialIndex + 1}/${IAT_CONFIG.trialsPerBlock}`;
+  },
+
+  _handleTrialEnd(data) {
+    IATStorage.recordTrial(data);
+  },
+
+  _handleBlockEnd(trials, info) {
+    // Auto-save handled per trial.
+  },
+
+  _handleComplete(allTrials) {
+    const results = IATScoring.compute(allTrials);
+    IATStorage.completeSession(results.dScore, results.errorRate, results.meanRT);
+    renderResults();
+  },
+};
+
+/* ============================================================
+   Results rendering (from results.html inline script)
+   ============================================================ */
+function renderResults() {
+  const session = IATStorage.getSession();
+  showScreen('screen-results');
+
+  const container = document.getElementById('results-container');
+
+  if (!session || !session.trials.length) {
+    container.innerHTML =
+      '<h1>No Data</h1><p class="subtitle">No IAT session found.</p>' +
+      '<button class="btn btn-primary" id="btn-empty-new" style="display:block;text-align:center;margin-top:24px;">Start New Session</button>';
+    document.getElementById('btn-empty-new').addEventListener('click', goToSetup);
+    return;
+  }
+
+  const results = IATScoring.compute(session.trials);
+
+  if (!session.completed) {
+    IATStorage.completeSession(results.dScore, results.errorRate, results.meanRT);
+  }
+
+  const versionLabels = {
+    other_congolese: 'IAT 1: Other Congolese',
+    congolese_state: 'IAT 2: Congolese State',
+  };
+  document.getElementById('results-subtitle').textContent =
+    versionLabels[session.iat_version] || session.iat_version;
+
+  const dEl = document.getElementById('d-score-value');
+  dEl.className = 'd-score-value';
+  dEl.textContent = results.dScore.toFixed(3);
+  if (results.dScore > 0.15) dEl.classList.add('positive');
+  else if (results.dScore < -0.15) dEl.classList.add('negative');
+  else dEl.classList.add('neutral');
+
+  document.getElementById('d-interpretation').textContent = results.interpretation;
+  document.getElementById('d-effect').textContent = 'Effect size: ' + results.effectSize;
+
+  document.getElementById('stat-mean-compat').textContent = results.meanCompatible + 'ms';
+  document.getElementById('stat-mean-incompat').textContent = results.meanIncompatible + 'ms';
+  document.getElementById('stat-error-rate').textContent = (results.errorRate * 100).toFixed(1) + '%';
+  document.getElementById('stat-mean-rt').textContent = results.meanRT + 'ms';
+
+  const flagsCard = document.getElementById('flags-card');
+  if (results.flags.length > 0) {
+    flagsCard.style.display = 'block';
+    document.getElementById('flags-list').innerHTML =
+      results.flags.map(f => '<li>' + f + '</li>').join('');
+  } else {
+    flagsCard.style.display = 'none';
+    document.getElementById('flags-list').innerHTML = '';
+  }
+
+  const orderLabels = { A: 'Order A (Compatible first)', B: 'Order B (Incompatible first)' };
+  document.getElementById('session-info').innerHTML = `
+    <p><strong>Respondent:</strong> ${session.respondent_id}</p>
+    <p><strong>Block Order:</strong> ${orderLabels[session.block_order] || session.block_order}</p>
+    <p><strong>Language:</strong> ${session.language}</p>
+    <p><strong>Total Trials:</strong> ${session.trials.length}</p>
+    <p><strong>Started:</strong> ${new Date(session.start_time).toLocaleString()}</p>
+    ${session.end_time ? '<p><strong>Ended:</strong> ' + new Date(session.end_time).toLocaleString() + '</p>' : ''}
+  `;
+
+  document.getElementById('btn-export-json').onclick = () => {
+    const json = IATStorage.exportJSON();
+    const filename = 'iat_' + session.respondent_id + '_' + session.iat_version + '.json';
+    IATStorage.download(json, filename, 'application/json');
+  };
+
+  document.getElementById('btn-export-csv').onclick = () => {
+    const csv = IATStorage.exportCSV();
+    const filename = 'iat_' + session.respondent_id + '_' + session.iat_version + '.csv';
+    IATStorage.download(csv, filename, 'text/csv');
+  };
+
+  document.getElementById('btn-new-session').onclick = goToSetup;
+}
+
+function goToSetup() {
+  if (IATUI.engine) { IATUI.engine.destroy(); IATUI.engine = null; }
+  IATStorage.clearSession();
+  document.getElementById('setup-form').reset();
+  showScreen('screen-setup');
+}
+
+/* ============================================================
+   Entry-page controller + global input binding (from app.js / ui.js)
+   ============================================================ */
+document.addEventListener('DOMContentLoaded', () => {
+  // --- Setup form ---
+  const form = document.getElementById('setup-form');
+  form.addEventListener('submit', (e) => {
+    e.preventDefault();
+
+    const respondentId = document.getElementById('respondent-id').value.trim()
+      || 'R_' + Date.now();
+
+    const iatSelect = document.getElementById('iat-version').value;
+    const orderSelect = document.getElementById('block-order').value;
+    const language = document.getElementById('language').value;
+
+    const iatVersion = iatSelect === 'random'
+      ? (Math.random() < 0.5 ? 'other_congolese' : 'congolese_state')
+      : iatSelect;
+
+    const blockOrder = orderSelect === 'random'
+      ? (Math.random() < 0.5 ? 'A' : 'B')
+      : orderSelect;
+
+    IATStorage.clearSession();
+
+    IATUI.init({ rid: respondentId, iat: iatVersion, order: blockOrder, lang: language });
+  });
+
+  // --- Global input binding (bound once; active only during the task) ---
+  document.addEventListener('keydown', (e) => {
+    if (!document.body.classList.contains('iat-mode') || !IATUI.engine) return;
+    if (IAT_CONFIG.keys.left.includes(e.key)) {
+      e.preventDefault();
+      IATUI.engine.respond('left');
+    } else if (IAT_CONFIG.keys.right.includes(e.key)) {
+      e.preventDefault();
+      IATUI.engine.respond('right');
+    } else if (e.key === ' ' || e.key === 'Enter') {
+      const continueBtn = document.getElementById('continue-btn');
+      const blockIntro = document.getElementById('block-intro');
+      if (continueBtn && blockIntro && !blockIntro.classList.contains('hidden')) {
+        e.preventDefault();
+        continueBtn.click();
+      }
+    }
+  });
+
+  document.getElementById('touch-left').addEventListener('click', () => {
+    if (IATUI.engine) IATUI.engine.respond('left');
+  });
+  document.getElementById('touch-right').addEventListener('click', () => {
+    if (IATUI.engine) IATUI.engine.respond('right');
+  });
+});
+</script>
+</body>
+</html>
