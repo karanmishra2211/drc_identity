@@ -211,3 +211,6 @@ const IATUI = {
 };
 
 document.addEventListener('DOMContentLoaded', () => IATUI.init());
+
+// Expose for debugging / field diagnostics (harmless in production).
+window.IATUI = IATUI;
