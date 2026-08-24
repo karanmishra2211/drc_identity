@@ -59,6 +59,46 @@ question; displaying it is a separate deployment question.
 Specs: mono, 44.1kHz, 500–800ms, silent ground, one native Swahili speaker
 throughout, neutral prosody, all clips loudness-normalised.
 
+## IAT #2 audio — `audio/iat2/`
+
+Spoken names, same recording specs as above. **All safety-gated: do not
+record, pilot, or field before Raul / Marakuja sign-off.**
+
+| Path | Name | Group | Gender |
+|---|---|---|---|
+| `iat2/kambale.mp3` | Kambale | Nande | m |
+| `iat2/kasereka.mp3` | Kasereka | Nande | m |
+| `iat2/kanyamuhanga.mp3` | Kanyamuhanga | Hunde | m |
+| `iat2/katungu.mp3` | Katungu | Nande | f |
+| `iat2/zawadi.mp3` | Zawadi | Swahili | u |
+| `iat2/nabintu.mp3` | Nabintu | Bembe | f |
+| `iat2/habimana.mp3` | Habimana | Rwandophone | m |
+| `iat2/nsengiyumva.mp3` | Nsengiyumva | Rwandophone | m |
+| `iat2/uwimana.mp3` | Uwimana | Rwandophone | u |
+| `iat2/iradukunda.mp3` | Iradukunda | Rwandophone | u |
+| `iat2/ingabire.mp3` | Ingabire | Rwandophone | f · **public-figure flag** |
+| `iat2/mukamana.mp3` | Mukamana | Rwandophone | f |
+
+Open validation items (surfaced on the setup page, `js/validation.js`):
+
+- **Gender is uneven** across the two sets as tagged. Match across columns or
+  hold single-gender before fielding.
+- **Ingabire** collides with a prominent Rwandan public figure — a
+  kill-criterion candidate; swap before fielding.
+- Confirm **Zawadi / Nabintu** read as non-Rwandophone autochthonous, not
+  generic Swahili.
+- The **"us" set is deliberately balanced** across autochthonous groups. A
+  single-group set would make "us" the own-group for that group's respondents
+  and revive the confound the instrument nets out. Sourcing more non-Nande /
+  non-Hunde names (Tembo, Nyanga) is the critical field task. A respondent
+  from a represented group still hears own-group names in "us"; balance
+  mitigates but does not eliminate this — an own-group screener is the
+  fuller fix.
+- **On-screen category labels are working placeholders.** "WENYEJI" /
+  "BANYARWANDA" and their framing are gated on the safety review and a
+  translator — displaying that sorting on a device is the exposure the gate
+  exists to control.
+
 ## Modality balance is load-bearing
 
 Each target category must hold exactly **2 image + 2 audio**. If validation

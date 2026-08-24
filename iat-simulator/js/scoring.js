@@ -1,73 +1,65 @@
 // ============================================================
-// scoring.js — Greenwald improved D algorithm
+// scoring.js — Greenwald improved D, generic across instruments
 //
-// SIGN CONVENTION (locked, never flip):
-//   D = ( mean RT[regional+good] − mean RT[national+good] ) / SD_pooled
-//   D > 0  =  faster when National + Good share a key
-//          =  stronger implicit NATIONAL identity
+// Each instrument names targetA (positive-D pole) and targetB.
+//   posPairing = `${targetA.key}_good`
+//   negPairing = `${targetB.key}_good`
+//   D = ( mean RT[negPairing] − mean RT[posPairing] ) / SD_pooled
+// D > 0  =  targetA + Good is faster.
 //
-// Scoring keys on PAIRING TYPE, not presentation position, so the
-// counterbalancing arm cannot flip the sign.
+// Scoring reads the per-trial `pairing` field, never the block
+// number, so the counterbalancing arm cannot flip the sign.
 // ============================================================
 
 const IATScoring = {
-  compute(trials) {
+  compute(trials, instrumentId) {
+    const inst = IAT_CONFIG.getInstrument(instrumentId);
+    const posPairing = `${inst.targetA.key}_good`;
+    const negPairing = `${inst.targetB.key}_good`;
     const cfg = IAT_CONFIG.scoring;
 
-    // Primary: test blocks only. Robustness: practice + test.
-    const primary = this._score(trials.filter(t => t.is_test), cfg);
-    const robustness = this._score(trials.filter(t => t.pairing !== null), cfg);
+    const primary = this._score(trials.filter(t => t.is_test), posPairing, negPairing, cfg);
+    const robustness = this._score(trials.filter(t => t.pairing !== null), posPairing, negPairing, cfg);
 
     return {
-      d_national: primary.d,
+      d: primary.d,
+      posPairing,
+      negPairing,
       primary,
       robustness,
       diagnostics: this._diagnostics(trials, cfg),
     };
   },
 
-  // --- Core D computation over a set of combined-block trials ---
+  _score(trials, posPairing, negPairing, cfg) {
+    const pos = trials.filter(t => t.pairing === posPairing);
+    const neg = trials.filter(t => t.pairing === negPairing);
 
-  _score(trials, cfg) {
-    const nat = trials.filter(t => t.pairing === 'national_good');
-    const reg = trials.filter(t => t.pairing === 'regional_good');
+    const posRT = this._latencies(pos, cfg);
+    const negRT = this._latencies(neg, cfg);
 
-    const natRT = this._latencies(nat, cfg);
-    const regRT = this._latencies(reg, cfg);
-
-    const meanNat = this._mean(natRT);
-    const meanReg = this._mean(regRT);
-
-    // Pooled SD across both conditions (inclusive SD, per Greenwald 2003)
-    const sd = this._sd([...natRT, ...regRT]);
+    const meanPos = this._mean(posRT);
+    const meanNeg = this._mean(negRT);
+    const sd = this._sd([...posRT, ...negRT]);
 
     return {
-      d: sd > 0 ? this._round((meanReg - meanNat) / sd, 3) : 0,
-      meanNationalGood: Math.round(meanNat),
-      meanRegionalGood: Math.round(meanReg),
+      d: sd > 0 ? this._round((meanNeg - meanPos) / sd, 3) : 0,
+      meanTargetAGood: Math.round(meanPos),
+      meanTargetBGood: Math.round(meanNeg),
       sdPooled: Math.round(sd),
-      nTrials: natRT.length + regRT.length,
+      nTrials: posRT.length + negRT.length,
     };
   },
 
-  // Apply the pre-registered error-handling rule and max-RT cutoff.
+  // Apply the pre-registered error rule and the max-RT cutoff.
   _latencies(trials, cfg) {
     const kept = trials.filter(t => t.rt_ms <= IAT_CONFIG.timing.maxRT);
+    if (cfg.errorHandling === 'enforced') return kept.map(t => t.rt_ms);
 
-    if (cfg.errorHandling === 'enforced') {
-      // Latency already runs to the corrected response; no penalty.
-      return kept.map(t => t.rt_ms);
-    }
-
-    // 'penalty': error latencies become block mean (correct trials) + 600ms
     const correct = kept.filter(t => t.correct === 1).map(t => t.rt_ms);
     const blockMean = this._mean(correct);
-    return kept.map(t =>
-      t.correct === 1 ? t.rt_ms : blockMean + cfg.errorPenaltyMs
-    );
+    return kept.map(t => t.correct === 1 ? t.rt_ms : blockMean + cfg.errorPenaltyMs);
   },
-
-  // --- Subject-level quality diagnostics ---
 
   _diagnostics(trials, cfg) {
     const combined = trials.filter(t => t.pairing !== null);
@@ -85,16 +77,13 @@ const IATScoring = {
       flags.push(`Error rate ${(errorRate * 100).toFixed(1)}% exceeds the ${(cfg.maxErrorRate * 100)}% threshold`);
     }
 
-    // Modality gap: audio stimuli carry a duration that images do not,
-    // so audio RTs run longer. A large gap inflates the pooled SD and
-    // shrinks D. Reported so the cost is visible, not hidden.
+    // Modality gap (only meaningful for mixed-modality instruments).
     const audio = combined.filter(t => t.stim_modality === 'audio' && t.correct === 1).map(t => t.rt_ms);
     const image = combined.filter(t => t.stim_modality === 'image' && t.correct === 1).map(t => t.rt_ms);
     const modalityGap = (audio.length && image.length)
-      ? Math.round(this._mean(audio) - this._mean(image))
-      : null;
+      ? Math.round(this._mean(audio) - this._mean(image)) : null;
     if (modalityGap !== null && Math.abs(modalityGap) > 150) {
-      flags.push(`Audio RTs run ${modalityGap}ms longer than image RTs — inflates pooled SD`);
+      flags.push(`Audio RTs run ${modalityGap}ms longer than image RTs — inflates within-subject variance`);
     }
 
     return {
@@ -109,12 +98,11 @@ const IATScoring = {
     };
   },
 
-  // --- Interpretation helpers ---
-
-  interpret(d) {
-    if (d > 0.15) return 'Stronger implicit national identity';
-    if (d < -0.15) return 'Stronger implicit regional identity';
-    return 'No clear directional association';
+  interpret(d, instrumentId) {
+    const inst = IAT_CONFIG.getInstrument(instrumentId);
+    if (d > 0.15) return inst.interp.pos;
+    if (d < -0.15) return inst.interp.neg;
+    return inst.interp.neutral;
   },
 
   effectSize(d) {
@@ -125,15 +113,11 @@ const IATScoring = {
     return 'Negligible';
   },
 
-  // --- Math ---
-
   _mean(a) { return a.length ? a.reduce((x, y) => x + y, 0) / a.length : 0; },
-
   _sd(a) {
     if (a.length < 2) return 0;
     const m = this._mean(a);
     return Math.sqrt(a.reduce((s, x) => s + (x - m) ** 2, 0) / (a.length - 1));
   },
-
   _round(v, p) { const f = 10 ** p; return Math.round(v * f) / f; },
 };

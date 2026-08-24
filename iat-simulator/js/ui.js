@@ -1,32 +1,77 @@
 // ============================================================
-// ui.js — DOM controller for the IAT task
+// ui.js — DOM controller for the task page
 // ============================================================
 
 const IATUI = {
   init() {
     const p = new URLSearchParams(location.search);
-    const respId = p.get('rid') || 'R_' + Date.now();
-    const arm = p.get('arm') || 'national_first';
-    const seed = parseInt(p.get('seed'), 10) || (Date.now() % 2147483647);
+    this.respId = p.get('rid') || 'R_' + Date.now();
+    this.instrumentId = p.get('inst') || 'national_regional';
+    this.arm = p.get('arm') || 'A_first';
+    this.seed = parseInt(p.get('seed'), 10) || (Date.now() % 2147483647);
 
-    if (p.get('swahili') === '0') IAT_CONFIG.useConditionalSwahili = false;
-    if (p.get('b5')) IAT_CONFIG.block5Trials = parseInt(p.get('b5'), 10);
+    if (p.get('swahili') === '0') IAT_CONFIG.options.dropConditionalSwahili = true;
+    if (p.get('b5')) IAT_CONFIG.options.block5Trials = parseInt(p.get('b5'), 10);
 
-    IATStorage.init({ respId, arm, seed });
+    this.instrument = IAT_CONFIG.getInstrument(this.instrumentId);
+    IATStorage.init({ respId: this.respId, instrumentId: this.instrumentId, arm: this.arm, seed: this.seed });
 
     this.engine = new IATEngine({
-      arm,
-      seed,
+      instrumentId: this.instrumentId,
+      arm: this.arm,
+      seed: this.seed,
       onStateChange: s => this._render(s),
       onTrialEnd: t => IATStorage.recordTrial(t),
       onComplete: all => this._finish(all),
     });
 
     this._bindInput();
-    this.engine.start();
+
+    // Safety-gated instruments must clear the gate before any trial.
+    if (this.instrument.safetyGated) {
+      this._showSafetyGate();
+    } else {
+      this.engine.start();
+    }
   },
 
-  // --- Rendering ---
+  // --- Safety gate (IAT #2) ---
+
+  _showSafetyGate() {
+    const g = this.instrument.safetyGate;
+    const intro = document.getElementById('block-intro');
+
+    const checks = g.confirmations.map((c, i) =>
+      `<label class="gate-check"><input type="checkbox" class="gate-box" data-i="${i}"> <span>${c}</span></label>`
+    ).join('');
+
+    intro.innerHTML = `
+      <div class="gate">
+        <div class="gate-flag">⛔ ${g.title}</div>
+        <p class="gate-body">${g.body}</p>
+        <div class="gate-checks">${checks}</div>
+        <div class="gate-actions">
+          <button class="continue-btn" id="gate-begin" disabled>Begin instrument</button>
+          ${g.allowSkip ? '<button class="skip-btn" id="gate-skip">Skip this IAT</button>' : ''}
+        </div>
+      </div>`;
+    intro.classList.remove('hidden');
+
+    const boxes = [...intro.querySelectorAll('.gate-box')];
+    const beginBtn = document.getElementById('gate-begin');
+    boxes.forEach(b => b.addEventListener('change', () => {
+      beginBtn.disabled = !boxes.every(x => x.checked);
+    }));
+    beginBtn.addEventListener('click', () => this.engine.start());
+
+    const skip = document.getElementById('gate-skip');
+    if (skip) skip.addEventListener('click', () => {
+      IATStorage.markSkipped('enumerator_skip');
+      location.href = 'results.html';
+    });
+  },
+
+  // --- State rendering ---
 
   _render(state) {
     const area = document.getElementById('stimulus-area');
@@ -37,13 +82,11 @@ const IATUI = {
       case 'BLOCK_INTRO':
         this._showIntro();
         break;
-
       case 'FIXATION':
         intro.classList.add('hidden');
         touch.classList.add('disabled');
         area.innerHTML = '<div class="fixation">+</div>';
         break;
-
       case 'STIMULUS':
       case 'AWAITING_RESPONSE': {
         const trial = this.engine.getCurrentTrial();
@@ -55,12 +98,10 @@ const IATUI = {
         this._updateProgress();
         break;
       }
-
       case 'FEEDBACK':
         touch.classList.add('disabled');
         area.innerHTML = '<div class="error-feedback">✕</div>';
         break;
-
       case 'ITI':
         touch.classList.add('disabled');
         area.innerHTML = '';
@@ -68,8 +109,6 @@ const IATUI = {
     }
   },
 
-  // Image assets are placeholders until the real files land; the frame
-  // falls back to a caption if the file is missing.
   _stimulusHTML(stim) {
     if (stim.modality === 'image') {
       return `
@@ -88,7 +127,7 @@ const IATUI = {
       </div>`;
   },
 
-  // Stand-in for the recorded clips so the task is testable now.
+  // Browser TTS stands in for the recorded clips until they land.
   _speak(text) {
     if (!('speechSynthesis' in window)) return;
     speechSynthesis.cancel();
@@ -108,15 +147,14 @@ const IATUI = {
 
     const first = info.index === 0;
     const combined = info.left.length > 1;
-
     const text = first
-      ? 'Sort each item as fast as you can. Press <strong>E</strong> or tap the left side of the screen for the category on the left; press <strong>I</strong> or tap the right side for the category on the right. A ✕ appears if you are wrong — keep going.'
+      ? 'Sort each item as fast as you can. Press <strong>E</strong> or tap the left of the screen for the category on the left; <strong>I</strong> or the right of the screen for the category on the right. A ✕ appears if you are wrong — keep going.'
       : combined
         ? 'Two categories now share each key. Sort each item by whichever category it belongs to.'
         : 'The categories have changed. Check the labels above before you begin.';
 
     intro.innerHTML = `
-      <div class="eyebrow">BLOCK ${info.index + 1} OF ${info.total} · ${info.trials} TRIALS</div>
+      <div class="eyebrow">${this.instrument.short.toUpperCase()} · BLOCK ${info.index + 1} OF ${info.total} · ${info.trials} TRIALS</div>
       <h2>${info.label}</h2>
       <div class="mapping">
         <div class="mapping-side">
@@ -130,13 +168,10 @@ const IATUI = {
       </div>
       <p class="instruction-text">${text}</p>
       <button class="continue-btn" id="continue-btn">Begin</button>`;
-
     intro.classList.remove('hidden');
 
-    document.getElementById('left-labels').innerHTML = labelHTML(info.leftLabels)
-      + '<span class="key-hint">E</span>';
-    document.getElementById('right-labels').innerHTML = labelHTML(info.rightLabels)
-      + '<span class="key-hint">I</span>';
+    document.getElementById('left-labels').innerHTML = labelHTML(info.leftLabels) + '<span class="key-hint">E</span>';
+    document.getElementById('right-labels').innerHTML = labelHTML(info.rightLabels) + '<span class="key-hint">I</span>';
 
     document.getElementById('continue-btn')
       .addEventListener('click', () => this.engine.proceedFromIntro());
@@ -150,8 +185,6 @@ const IATUI = {
       `Block ${info.index + 1}/${info.total} · trial ${this.engine.trialIndex + 1}/${info.trials}`;
   },
 
-  // --- Input ---
-
   _bindInput() {
     document.addEventListener('keydown', e => {
       if (IAT_CONFIG.keys.left.includes(e.key)) {
@@ -162,21 +195,16 @@ const IATUI = {
         this.engine.respond('right');
       } else if (e.key === ' ' || e.key === 'Enter') {
         const btn = document.getElementById('continue-btn');
-        if (btn && !document.getElementById('block-intro').classList.contains('hidden')) {
-          e.preventDefault();
-          btn.click();
-        }
+        const intro = document.getElementById('block-intro');
+        if (btn && !intro.classList.contains('hidden')) { e.preventDefault(); btn.click(); }
       }
     });
-
-    document.getElementById('touch-left')
-      .addEventListener('click', () => this.engine.respond('left'));
-    document.getElementById('touch-right')
-      .addEventListener('click', () => this.engine.respond('right'));
+    document.getElementById('touch-left').addEventListener('click', () => this.engine.respond('left'));
+    document.getElementById('touch-right').addEventListener('click', () => this.engine.respond('right'));
   },
 
   _finish(allTrials) {
-    const results = IATScoring.compute(allTrials);
+    const results = IATScoring.compute(allTrials, this.instrumentId);
     IATStorage.complete(results);
     location.href = 'results.html';
   },

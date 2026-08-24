@@ -3,46 +3,48 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>IAT #1 — Results</title>
+    <title>IAT — Results</title>
     <link rel="stylesheet" href="css/main.css">
 </head>
 <body>
     <div class="container" id="root">
         <h1>Session complete</h1>
-        <p class="subtitle">IAT #1 — National vs. Regional Identity</p>
+        <p class="subtitle" id="subtitle"></p>
 
-        <div class="card">
-            <div class="score-display">
-                <div class="score-value" id="d-value">—</div>
-                <div class="score-caption">d_national</div>
-                <div class="score-interp" id="d-interp"></div>
-                <div class="score-effect" id="d-effect"></div>
+        <div id="skipped-card" class="card hidden">
+            <div class="inline-flag">This safety-gated instrument was skipped. No trials were recorded.</div>
+        </div>
+
+        <div id="results-body" class="hidden">
+            <div class="card">
+                <div class="score-display">
+                    <div class="score-value" id="d-value">—</div>
+                    <div class="score-caption">D-score</div>
+                    <div class="score-interp" id="d-interp"></div>
+                    <div class="score-effect" id="d-effect"></div>
+                </div>
+                <p class="note sign-note" id="sign-note"></p>
             </div>
-            <p class="note sign-note">
-                D &gt; 0 = faster when <strong>National + Good</strong> share a key
-                = stronger implicit national identity. Scored on pairing type,
-                not presentation order, so the arm cannot flip the sign.
-            </p>
-        </div>
 
-        <div class="card">
-            <h2>Primary — test blocks only</h2>
-            <div class="stat-grid" id="primary-stats"></div>
-        </div>
+            <div class="card">
+                <h2>Primary — test blocks only</h2>
+                <div class="stat-grid" id="primary-stats"></div>
+            </div>
 
-        <div class="card">
-            <h2>Robustness — practice + test</h2>
-            <div class="stat-grid" id="robust-stats"></div>
-        </div>
+            <div class="card">
+                <h2>Robustness — practice + test</h2>
+                <div class="stat-grid" id="robust-stats"></div>
+            </div>
 
-        <div class="card">
-            <h2>Diagnostics</h2>
-            <div class="stat-grid" id="diag-stats"></div>
-        </div>
+            <div class="card">
+                <h2>Diagnostics</h2>
+                <div class="stat-grid" id="diag-stats"></div>
+            </div>
 
-        <div class="card hidden" id="flags-card">
-            <h2>Flags</h2>
-            <ul class="flags" id="flags"></ul>
+            <div class="card hidden" id="flags-card">
+                <h2>Flags</h2>
+                <ul class="flags" id="flags"></ul>
+            </div>
         </div>
 
         <div class="card">
@@ -50,7 +52,7 @@
             <div class="kv" id="session-info"></div>
         </div>
 
-        <div class="btn-group">
+        <div class="btn-group" id="export-buttons">
             <button class="btn btn-secondary" id="export-json">Export JSON</button>
             <button class="btn btn-secondary" id="export-csv">Export CSV</button>
         </div>
@@ -63,36 +65,65 @@
     <script>
     document.addEventListener('DOMContentLoaded', () => {
       const s = IATStorage.get();
-
-      if (!s || !s.trials.length) {
+      if (!s) {
         document.getElementById('root').innerHTML =
           '<h1>No data</h1><p class="subtitle">No session found.</p>' +
           '<a href="index.html" class="btn btn-primary btn-block">Start a session</a>';
         return;
       }
 
-      const r = IATScoring.compute(s.trials);
-      const d = r.d_national;
+      const inst = IAT_CONFIG.getInstrument(s.instrument_id);
+      document.getElementById('subtitle').textContent = s.instrument_title;
+
+      const armLabel = { A_first: 'Target A + Good first', B_first: 'Target B + Good first' };
+      const sessionRows = `
+        <p><span>Respondent</span><strong>${s.resp_id}</strong></p>
+        <p><span>Instrument</span><strong>${s.instrument_id}</strong></p>
+        <p><span>Arm</span><strong>${armLabel[s.order_arm] || s.order_arm}</strong></p>
+        <p><span>Seed</span><strong>${s.seed}</strong></p>
+        <p><span>Error handling</span><strong>${s.error_handling}</strong></p>
+        <p><span>Started</span><strong>${new Date(s.start_time).toLocaleString()}</strong></p>`;
+      document.getElementById('session-info').innerHTML = sessionRows;
+
+      // Skipped safety-gated instrument
+      if (s.skipped) {
+        document.getElementById('subtitle').textContent = s.instrument_title + ' — skipped';
+        document.getElementById('skipped-card').classList.remove('hidden');
+        document.getElementById('export-buttons').classList.add('hidden');
+        return;
+      }
+
+      if (!s.trials.length) {
+        document.getElementById('export-buttons').classList.add('hidden');
+        return;
+      }
+
+      const r = IATScoring.compute(s.trials, s.instrument_id);
+      const d = r.d;
+
+      document.getElementById('results-body').classList.remove('hidden');
 
       const dEl = document.getElementById('d-value');
       dEl.textContent = (d > 0 ? '+' : '') + d.toFixed(3);
       dEl.classList.add(d > 0.15 ? 'pos' : d < -0.15 ? 'neg' : 'neu');
-
-      document.getElementById('d-interp').textContent = IATScoring.interpret(d);
+      document.getElementById('d-interp').textContent = IATScoring.interpret(d, s.instrument_id);
       document.getElementById('d-effect').textContent = 'Effect size: ' + IATScoring.effectSize(d);
+      document.getElementById('sign-note').innerHTML =
+        `D &gt; 0 = faster when <strong>${inst.targetA.label}</strong> shares a key with GOOD. ` +
+        `Scored on pairing type, not presentation order, so the arm cannot flip the sign.`;
 
       const stat = (v, l) => `<div class="stat"><div class="stat-value">${v}</div><div class="stat-label">${l}</div></div>`;
 
       document.getElementById('primary-stats').innerHTML =
-        stat(r.primary.meanNationalGood + 'ms', 'Mean RT · National+Good') +
-        stat(r.primary.meanRegionalGood + 'ms', 'Mean RT · Regional+Good') +
+        stat(r.primary.meanTargetAGood + 'ms', `Mean RT · ${inst.targetA.label}+Good`) +
+        stat(r.primary.meanTargetBGood + 'ms', `Mean RT · ${inst.targetB.label}+Good`) +
         stat(r.primary.sdPooled + 'ms', 'Pooled SD') +
         stat(r.primary.nTrials, 'Trials');
 
       document.getElementById('robust-stats').innerHTML =
         stat((r.robustness.d > 0 ? '+' : '') + r.robustness.d.toFixed(3), 'D (3+4 vs 6+7)') +
-        stat(r.robustness.meanNationalGood + 'ms', 'Mean RT · National+Good') +
-        stat(r.robustness.meanRegionalGood + 'ms', 'Mean RT · Regional+Good') +
+        stat(r.robustness.meanTargetAGood + 'ms', `Mean RT · ${inst.targetA.label}+Good`) +
+        stat(r.robustness.meanTargetBGood + 'ms', `Mean RT · ${inst.targetB.label}+Good`) +
         stat(r.robustness.nTrials, 'Trials');
 
       const g = r.diagnostics;
@@ -104,26 +135,10 @@
 
       if (g.flags.length) {
         document.getElementById('flags-card').classList.remove('hidden');
-        document.getElementById('flags').innerHTML =
-          g.flags.map(f => '<li>' + f + '</li>').join('');
+        document.getElementById('flags').innerHTML = g.flags.map(f => '<li>' + f + '</li>').join('');
       }
 
-      const armLabel = {
-        national_first: 'National + Good first',
-        regional_first: 'Regional + Good first',
-      };
-
-      document.getElementById('session-info').innerHTML = `
-        <p><span>Respondent</span><strong>${s.resp_id}</strong></p>
-        <p><span>Arm</span><strong>${armLabel[s.order_arm] || s.order_arm}</strong></p>
-        <p><span>Seed</span><strong>${s.seed}</strong></p>
-        <p><span>Error handling</span><strong>${s.error_handling}</strong></p>
-        <p><span>Kiswahili stimulus</span><strong>${s.swahili_included ? 'included' : 'dropped'}</strong></p>
-        <p><span>Block 5</span><strong>${s.block5_trials} trials</strong></p>
-        <p><span>Total trials</span><strong>${s.trials.length}</strong></p>
-        <p><span>Started</span><strong>${new Date(s.start_time).toLocaleString()}</strong></p>`;
-
-      const stem = 'iat1_' + s.resp_id;
+      const stem = 'iat_' + s.instrument_id + '_' + s.resp_id;
       document.getElementById('export-json').onclick = () =>
         IATStorage.download(IATStorage.exportJSON(), stem + '.json', 'application/json');
       document.getElementById('export-csv').onclick = () =>

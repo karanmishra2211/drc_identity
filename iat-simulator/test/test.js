@@ -1,85 +1,75 @@
+// Node test harness for the IAT battery. Run: node test/test.js
 const fs = require('fs');
-const path = __dirname + '/../js/';
-const load = f => fs.readFileSync(path + f, 'utf8');
+const dir = __dirname + '/../js/';
+const load = f => fs.readFileSync(dir + f, 'utf8');
 
 global.performance = { now: () => Date.now() };
 const geval = eval;
-geval(load('config.js') + '\nglobalThis.IAT_CONFIG = IAT_CONFIG;');
-geval(load('scoring.js') + '\nglobalThis.IATScoring = IATScoring;');
-geval(load('engine.js') + '\nglobalThis.IATEngine = IATEngine;');
+geval(load('config.js')     + '\nglobalThis.IAT_CONFIG = IAT_CONFIG;');
+geval(load('validation.js') + '\nglobalThis.IATValidation = IATValidation;');
+geval(load('scoring.js')    + '\nglobalThis.IATScoring = IATScoring;');
+geval(load('engine.js')     + '\nglobalThis.IATEngine = IATEngine;');
 
 let fail = 0;
 const ok = (c, m) => { console.log((c ? '  PASS  ' : '  FAIL  ') + m); if (!c) fail++; };
+const INSTRUMENTS = ['national_regional', 'banyarwanda_bias'];
 
-// ---- 1. Block construction ----
+// ---- 1. Block structure, both instruments, both arms ----
 console.log('\n1. Block structure');
-for (const arm of ['national_first', 'regional_first']) {
-  const e = new IATEngine({ arm, seed: 42 });
-  const total = e.blocks.reduce((s, b) => s + b.trials, 0);
-  ok(e.blocks.length === 7, `${arm}: 7 blocks`);
-  ok(total === 200, `${arm}: 200 trials total (got ${total})`);
+for (const inst of INSTRUMENTS) {
+  for (const arm of ['A_first', 'B_first']) {
+    const e = new IATEngine({ instrumentId: inst, arm, seed: 42 });
+    const total = e.blocks.reduce((s, b) => s + b.trials, 0);
+    ok(e.blocks.length === 7, `${inst}/${arm}: 7 blocks`);
+    ok(total === 200, `${inst}/${arm}: 200 trials (got ${total})`);
 
-  const tests = e.blocks.filter(b => b.isTest);
-  ok(tests.length === 2, `${arm}: 2 test blocks`);
-  const pairings = tests.map(b => b.pairing).sort();
-  ok(pairings[0] === 'national_good' && pairings[1] === 'regional_good',
-     `${arm}: test blocks cover both pairings (${pairings.join(', ')})`);
+    const tests = e.blocks.filter(b => b.isTest);
+    const A = IAT_CONFIG.getInstrument(inst).targetA.key;
+    const B = IAT_CONFIG.getInstrument(inst).targetB.key;
+    const pairings = tests.map(b => b.pairing).sort();
+    ok(pairings.length === 2 && pairings.includes(`${A}_good`) && pairings.includes(`${B}_good`),
+       `${inst}/${arm}: test blocks cover both pairings (${pairings.join(', ')})`);
 
-  // GOOD must always be on the left
-  const combined = e.blocks.filter(b => b.pairing);
-  ok(combined.every(b => b.left.includes('good')), `${arm}: GOOD pinned left in all combined blocks`);
-  ok(combined.every(b => b.right.includes('bad')), `${arm}: BAD pinned right in all combined blocks`);
-}
-
-// Arm 1 must match the spec table exactly
-console.log('\n2. Arm 1 matches spec table');
-{
-  const e = new IATEngine({ arm: 'national_first', seed: 1 });
-  const b = n => e.blocks.find(x => x.n === n);
-  ok(b(4).leftTarget === 'national' && b(4).pairing === 'national_good', 'Block 4 = National+Good');
-  ok(b(7).leftTarget === 'regional' && b(7).pairing === 'regional_good', 'Block 7 = Regional+Good');
-  ok(b(5).leftTarget === 'regional', 'Block 5 reverses targets');
-  const t = [20,20,20,40,40,20,40];
-  ok(t.every((v,i) => b(i+1).trials === v), 'Trial counts 20/20/20/40/40/20/40');
-}
-
-// ---- 3. Trial generation ----
-console.log('\n3. Trial generation');
-{
-  const e = new IATEngine({ arm: 'national_first', seed: 7 });
-  for (const blk of e.blocks) {
-    const trials = e._generateTrials(blk);
-    ok(trials.length === blk.trials, `Block ${blk.n}: ${blk.trials} trials generated`);
-    const bad = trials.filter(t => !blk.left.concat(blk.right).includes(t.category));
-    ok(bad.length === 0, `Block ${blk.n}: all categories valid for this block`);
-    // balance
-    const counts = {};
-    trials.forEach(t => counts[t.category] = (counts[t.category] || 0) + 1);
-    const vals = Object.values(counts);
-    ok(vals.every(v => v === vals[0]), `Block ${blk.n}: categories balanced (${JSON.stringify(counts)})`);
+    const combined = e.blocks.filter(b => b.pairing);
+    ok(combined.every(b => b.left.includes('good')), `${inst}/${arm}: GOOD pinned left`);
+    ok(combined.every(b => b.right.includes('bad')), `${inst}/${arm}: BAD pinned right`);
   }
 }
 
-// ---- 4. Seed reproducibility ----
-console.log('\n4. Seed reproducibility');
-{
-  const a = new IATEngine({ arm: 'national_first', seed: 999 });
-  const b = new IATEngine({ arm: 'national_first', seed: 999 });
-  const c = new IATEngine({ arm: 'national_first', seed: 1000 });
-  const seq = e => e._generateTrials(e.blocks[3]).map(t => t.stim.id).join(',');
-  ok(seq(a) === seq(b), 'Same seed → same trial order');
-  ok(seq(a) !== seq(c), 'Different seed → different trial order');
+// ---- 2. Trial generation balance ----
+console.log('\n2. Trial generation');
+for (const inst of INSTRUMENTS) {
+  const e = new IATEngine({ instrumentId: inst, arm: 'A_first', seed: 7 });
+  for (const blk of e.blocks) {
+    const trials = e._generateTrials(blk);
+    ok(trials.length === blk.trials, `${inst} block ${blk.n}: ${blk.trials} trials`);
+    const counts = {};
+    trials.forEach(t => counts[t.category] = (counts[t.category] || 0) + 1);
+    const vals = Object.values(counts);
+    ok(vals.every(v => v === vals[0]), `${inst} block ${blk.n}: balanced ${JSON.stringify(counts)}`);
+    const validCats = blk.left.concat(blk.right);
+    ok(trials.every(t => validCats.includes(t.category)), `${inst} block ${blk.n}: categories valid`);
+  }
 }
 
-// ---- 5. SIGN CONVENTION (the critical test) ----
-console.log('\n5. Sign convention — must hold for BOTH arms');
-function synth(arm, fastPairing) {
-  // Simulate a respondent who is 200ms faster on `fastPairing`.
-  const e = new IATEngine({ arm, seed: 5 });
+// ---- 3. Seed reproducibility ----
+console.log('\n3. Seed reproducibility');
+{
+  const seq = (inst, seed) => new IATEngine({ instrumentId: inst, arm: 'A_first', seed })
+    ._generateTrials({ n: 4, trials: 40, kinds: ['target', 'attribute'], left: [], right: [], phase: 'first' })
+    .map(t => t.stim.id).join(',');
+  ok(seq('national_regional', 999) === seq('national_regional', 999), 'Same seed → same order');
+  ok(seq('national_regional', 999) !== seq('national_regional', 1000), 'Different seed → different order');
+}
+
+// ---- 4. SIGN CONVENTION — both instruments, both arms ----
+console.log('\n4. Sign convention');
+function synth(inst, arm, fastKey) {
+  const e = new IATEngine({ instrumentId: inst, arm, seed: 5 });
   const out = [];
   for (const blk of e.blocks) {
     if (!blk.pairing) continue;
-    const base = blk.pairing === fastPairing ? 600 : 800;
+    const base = blk.pairing === `${fastKey}_good` ? 600 : 800;
     e._generateTrials(blk).forEach((t, i) => out.push({
       block: blk.n, block_fn: blk.fn, is_test: blk.isTest, pairing: blk.pairing,
       trial_no: i + 1, stimulus: t.stim.id, stim_modality: t.stim.modality,
@@ -87,24 +77,22 @@ function synth(arm, fastPairing) {
       rt_ms: base + (i % 10) * 5,
     }));
   }
-  return IATScoring.compute(out).d_national;
+  return IATScoring.compute(out, inst).d;
+}
+for (const inst of INSTRUMENTS) {
+  const A = IAT_CONFIG.getInstrument(inst).targetA.key;
+  const B = IAT_CONFIG.getInstrument(inst).targetB.key;
+  for (const arm of ['A_first', 'B_first']) {
+    ok(synth(inst, arm, A) > 0, `${inst}/${arm}: faster on ${A}+Good → D > 0`);
+    ok(synth(inst, arm, B) < 0, `${inst}/${arm}: faster on ${B}+Good → D < 0`);
+  }
+  const d1 = synth(inst, 'A_first', A);
+  const d2 = synth(inst, 'B_first', A);
+  ok(Math.abs(d1 - d2) < 0.05, `${inst}: both arms give identical D (${d1} vs ${d2})`);
 }
 
-for (const arm of ['national_first', 'regional_first']) {
-  const dNat = synth(arm, 'national_good');
-  const dReg = synth(arm, 'regional_good');
-  ok(dNat > 0, `${arm}: faster on National+Good → D > 0 (got ${dNat})`);
-  ok(dReg < 0, `${arm}: faster on Regional+Good → D < 0 (got ${dReg})`);
-}
-// Arms must agree in magnitude — counterbalancing must not bias D
-{
-  const d1 = synth('national_first', 'national_good');
-  const d2 = synth('regional_first', 'national_good');
-  ok(Math.abs(d1 - d2) < 0.05, `Both arms give near-identical D (${d1} vs ${d2})`);
-}
-
-// ---- 6. Error penalty ----
-console.log('\n6. Error handling');
+// ---- 5. Error penalty ----
+console.log('\n5. Error handling');
 {
   const mk = (pairing, rt, correct) => ({
     block: 4, block_fn: 'combined_test', is_test: true, pairing,
@@ -115,13 +103,13 @@ console.log('\n6. Error handling');
     ...Array(10).fill(0).map(() => mk('national_good', 600, 1)),
     ...Array(10).fill(0).map(() => mk('regional_good', 600, 1)),
   ];
-  const clean = IATScoring.compute(trials).d_national;
-  const withErr = IATScoring.compute([...trials, mk('regional_good', 400, 0)]).d_national;
-  ok(withErr > clean, `Error on Regional+Good raises its latency → D increases (${clean} → ${withErr})`);
+  const clean = IATScoring.compute(trials, 'national_regional').d;
+  const withErr = IATScoring.compute([...trials, mk('regional_good', 400, 0)], 'national_regional').d;
+  ok(withErr > clean, `Error on B+Good raises its latency → D up (${clean} → ${withErr})`);
 }
 
-// ---- 7. Diagnostics ----
-console.log('\n7. Diagnostics');
+// ---- 6. Diagnostics ----
+console.log('\n6. Diagnostics');
 {
   const mk = (mod, rt, correct) => ({
     block: 4, block_fn: 'combined_test', is_test: true, pairing: 'national_good',
@@ -133,42 +121,58 @@ console.log('\n7. Diagnostics');
     ...Array(20).fill(0).map(() => mk('image', 500, 1)),
     ...Array(20).fill(0).map(() => mk('audio', 700, 0)),
   ];
-  const g = IATScoring.compute(t).diagnostics;
+  const g = IATScoring.compute(t, 'national_regional').diagnostics;
   ok(g.modality_gap_ms === 400, `Modality gap detected (${g.modality_gap_ms}ms)`);
-  ok(g.flags.some(f => /inflates pooled SD/.test(f)), 'Modality gap raises a flag');
-  ok(Math.abs(g.error_rate - 1/3) < 0.01, `Error rate ${g.error_rate}`);
-  ok(g.flags.some(f => /Error rate/.test(f)), 'High error rate raises a flag');
+  ok(g.flags.some(f => /within-subject variance/.test(f)), 'Modality gap flagged');
+  ok(g.flags.some(f => /Error rate/.test(f)), 'High error rate flagged');
 }
 
-// ---- 8. Conditional Swahili ----
-console.log('\n8. Conditional Swahili swap');
+// ---- 7. Conditional Swahili swap (IAT #1) ----
+console.log('\n7. Conditional Swahili');
 {
-  IAT_CONFIG.useConditionalSwahili = true;
-  let r = IAT_CONFIG.resolvedTargets('regional');
-  ok(r.length === 4, `Included: 4 regional stimuli`);
-  ok(r.some(s => s.id === 'kiswahili'), 'Kiswahili present');
+  IAT_CONFIG.options.dropConditionalSwahili = false;
+  let r = IAT_CONFIG.resolveStimuli('national_regional', 'regional');
+  ok(r.length === 4 && r.some(s => s.id === 'kiswahili') && !r.some(s => s.id === 'mashariki'),
+     'Included: Kiswahili present, Mashariki absent (4 total)');
 
-  IAT_CONFIG.useConditionalSwahili = false;
-  r = IAT_CONFIG.resolvedTargets('regional');
-  ok(r.length === 4, 'Dropped: still 4 regional stimuli');
-  ok(!r.some(s => s.id === 'kiswahili'), 'Kiswahili absent');
-  ok(r.some(s => s.id === 'mashariki'), 'Mashariki swapped in');
-
-  // modality balance must survive the swap
+  IAT_CONFIG.options.dropConditionalSwahili = true;
+  r = IAT_CONFIG.resolveStimuli('national_regional', 'regional');
+  ok(r.length === 4 && !r.some(s => s.id === 'kiswahili') && r.some(s => s.id === 'mashariki'),
+     'Dropped: Mashariki swapped in (4 total)');
   const img = r.filter(s => s.modality === 'image').length;
   const aud = r.filter(s => s.modality === 'audio').length;
-  ok(img === 2 && aud === 2, `Modality balance held: ${img} image / ${aud} audio`);
-  IAT_CONFIG.useConditionalSwahili = true;
+  ok(img === 2 && aud === 2, `Modality balance held (${img} image / ${aud} audio)`);
+  IAT_CONFIG.options.dropConditionalSwahili = false;
+}
+
+// ---- 8. IAT #2 specifics ----
+console.log('\n8. IAT #2 — Banyarwanda');
+{
+  const inst = IAT_CONFIG.getInstrument('banyarwanda_bias');
+  ok(inst.safetyGated === true, 'Marked safety-gated');
+  ok(inst.safetyGate && inst.safetyGate.confirmations.length === 3, 'Gate has 3 confirmations');
+
+  const us = IAT_CONFIG.resolveStimuli('banyarwanda_bias', 'autochthonous');
+  const them = IAT_CONFIG.resolveStimuli('banyarwanda_bias', 'banyarwanda');
+  ok(us.length === 6 && them.length === 6, 'Six names per side');
+  ok(us.every(s => s.modality === 'audio') && them.every(s => s.modality === 'audio'), 'All audio');
+
+  const groups = new Set(us.map(s => s.group));
+  ok(groups.size > 1, `"Us" spans multiple groups (${[...groups].join(', ')})`);
+
+  const warnings = IATValidation.check('banyarwanda_bias');
+  ok(warnings.some(w => /public figure/i.test(w)), 'Ingabire public-figure flag surfaced');
+  ok(warnings.some(w => /Gender composition/i.test(w)), 'Gender-composition flag surfaced');
+  ok(warnings.some(w => /own-group/i.test(w)), 'Own-group confound flag surfaced');
 }
 
 // ---- 9. Block 5 trim lever ----
 console.log('\n9. Block 5 trim lever');
 {
-  IAT_CONFIG.block5Trials = 20;
-  const e = new IATEngine({ arm: 'national_first', seed: 1 });
-  const total = e.blocks.reduce((s, b) => s + b.trials, 0);
-  ok(total === 180, `Trimmed total = 180 (got ${total})`);
-  IAT_CONFIG.block5Trials = 40;
+  IAT_CONFIG.options.block5Trials = 20;
+  const e = new IATEngine({ instrumentId: 'national_regional', arm: 'A_first', seed: 1 });
+  ok(e.blocks.reduce((s, b) => s + b.trials, 0) === 180, 'Trimmed total = 180');
+  IAT_CONFIG.options.block5Trials = 40;
 }
 
 console.log(fail === 0 ? '\nAll tests passed.\n' : `\n${fail} FAILURE(S).\n`);

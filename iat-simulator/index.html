@@ -3,15 +3,27 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>IAT #1 — National vs. Regional Identity</title>
+    <title>IAT Battery — DRC National Identity Study</title>
     <link rel="stylesheet" href="css/main.css">
 </head>
 <body>
     <div class="container">
-        <h1>IAT #1 — National vs. Regional Identity</h1>
-        <p class="subtitle">Implicit Association Test · Instrument spec v1.0 · DRC National Identity Study</p>
+        <h1>IAT Battery</h1>
+        <p class="subtitle">DRC National Identity Study · field simulator</p>
 
         <form id="setup-form">
+            <div class="card">
+                <h2>Instrument</h2>
+                <label for="instrument">Which IAT</label>
+                <select id="instrument">
+                    <option value="national_regional">IAT #1 — National vs. Regional Identity</option>
+                    <option value="banyarwanda_bias">IAT #2 — Banyarwanda Bias (safety-gated)</option>
+                </select>
+                <p class="note" id="instrument-note"></p>
+                <div id="gate-warning" class="inline-flag hidden"></div>
+                <div id="validation" class="validation hidden"></div>
+            </div>
+
             <div class="card">
                 <h2>Session</h2>
 
@@ -21,23 +33,23 @@
                 <label for="arm">Counterbalancing arm</label>
                 <select id="arm">
                     <option value="random">Random (recommended)</option>
-                    <option value="national_first">National + Good first</option>
-                    <option value="regional_first">Regional + Good first</option>
+                    <option value="A_first">Target A + Good first</option>
+                    <option value="B_first">Target B + Good first</option>
                 </select>
 
                 <label for="seed">Seed <span class="hint">reproduces trial order</span></label>
                 <input type="text" id="seed" placeholder="Blank = auto">
             </div>
 
-            <div class="card">
-                <h2>Instrument options</h2>
+            <div class="card" id="iat1-options">
+                <h2>IAT #1 options</h2>
 
                 <label for="swahili">“Kiswahili” regional stimulus</label>
                 <select id="swahili">
                     <option value="1">Included</option>
                     <option value="0">Dropped — swap in “Mashariki”</option>
                 </select>
-                <p class="note">Drop if IAT #2 fields with Kinyarwanda names (cross-priming). Worth dropping regardless: every attribute trial is already Swahili audio.</p>
+                <p class="note">Drop if IAT #2 is in the field (name/language salience in both → cross-priming); worth dropping regardless, since every attribute trial is already Swahili audio.</p>
 
                 <label for="b5">Block 5 length <span class="hint">the one trim lever</span></label>
                 <select id="b5">
@@ -46,15 +58,12 @@
                 </select>
             </div>
 
-            <div class="card">
-                <h2>What happens next</h2>
-                <p class="note">Seven blocks, 200 trials, roughly 7–8 minutes. Press <strong>E</strong> or tap the left of the screen for the left category; <strong>I</strong> or the right of the screen for the right one. Image stimuli show a placeholder frame until the real assets are added; audio stimuli are spoken via the browser as a stand-in for the recorded clips.</p>
-            </div>
-
             <button type="submit" class="btn btn-primary">Start</button>
         </form>
     </div>
 
+    <script src="js/config.js"></script>
+    <script src="js/validation.js"></script>
     <script src="js/app.js"></script>
 </body>
 </html>
